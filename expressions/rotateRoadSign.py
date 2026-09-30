@@ -3,15 +3,11 @@ Define new functions using @qgsfunction. feature and parent must always be the
 last args. Use args=-1 to pass a list of values as arguments
 """
 
-
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
 from qgis.core import *
 from qgis.gui import *
-import sys
-import os, ssl
 import math
-
 
 @qgsfunction(args='auto', group='Custom', handlesnull=True)
 def rotateRoadSign(linelayers, tolerance, directional, feature, parent):
@@ -23,11 +19,19 @@ def rotateRoadSign(linelayers, tolerance, directional, feature, parent):
     # initializations
     if tolerance is None: tolerance = 0.1           # search tolerance
     if directional is None: directional = 'none'    # consider direction?
-    #feedback = QgsProcessingFeedback()
+
     
+    if not feature.hasGeometry():
+        return -360
+
     for linelayer in linelayers:
-        # get linelayer
-        lines = QgsProject.instance().mapLayersByName(linelayer.strip())[0]
+        # get linelayer - skip silently if it is not (or no longer) in the project
+        if not linelayer:
+            continue
+        layers = QgsProject.instance().mapLayersByName(linelayer.strip())
+        if not layers:
+            continue
+        lines = layers[0]
 
         x = feature.geometry().asPoint().x()
         y = feature.geometry().asPoint().y()
@@ -61,7 +65,6 @@ def rotateRoadSign(linelayers, tolerance, directional, feature, parent):
             if sort_found[0][0] <= tolerance:  # only rotate points within tolerance of lines
                 angle = math.degrees(math.atan2(p1.x() - p2.x(), p1.y() - p2.y()))
                 angle = (angle + 360) if angle < 0 else angle
-                geom = feature.geometry()
                 
                 if directional == 'none':  ## if direction shouldn't be considered, we always place the symbol turning nicely upwards
                     angle = (angle % 360) if math.cos(math.radians(angle % 360)) > 0 else ((angle % 360)-180)

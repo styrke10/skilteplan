@@ -4,12 +4,10 @@ last args. Use args=-1 to pass a list of values as arguments
 """
 
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from qgis.PyQt.QtCore import *
+from qgis.PyQt.QtGui import *
 from qgis.core import *
 from qgis.gui import *
-import sys
-import os
 
 
 @qgsfunction(args='auto', group='Custom', handlesnull=True)
@@ -49,7 +47,6 @@ def getRoadCodeAndName(linelayer, fvejkode, fvejnavn, feature, parent):
 
     # find lines
     found = []
-    distance = QgsDistanceArea()
     for line in lines.getFeatures(QgsFeatureRequest().setFilterRect(searchRect)):
 
         # get the distance to the nearest segment on line
@@ -63,8 +60,10 @@ def getRoadCodeAndName(linelayer, fvejkode, fvejnavn, feature, parent):
     if len(found) > 0:
         sort_found = sorted(found, key=lambda tup: tup[0])
 
-        # find attribute values
-        if sort_found[0][0] <= tolerance:  
+        # find attribute values on the CLOSEST segment
+        if sort_found[0][0] <= tolerance:
+            vejkode = sort_found[0][1]
+            vejnavn = sort_found[0][2]
             return '{}:{}'.format(str(vejkode).zfill(4), vejnavn)
 
         return '0002:ingen linjer indenfor tolerance' #None

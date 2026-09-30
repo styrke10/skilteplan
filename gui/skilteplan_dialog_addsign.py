@@ -26,17 +26,15 @@ import os
 
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
-from qgis.PyQt.QtWidgets import QGraphicsScene, QFileDialog, QDialogButtonBox, QMessageBox
+from qgis.PyQt.QtWidgets import QGraphicsScene, QDialogButtonBox, QMessageBox
 from qgis.PyQt.QtSvg import QGraphicsSvgItem
 from qgis.PyQt.QtCore import Qt
-from qgis.core import Qgis, QgsProject, QgsVectorLayer, QgsFeature, QgsFeatureRequest, QgsMessageLog
+from qgis.core import Qgis, QgsFeature, QgsFeatureRequest, QgsMessageLog
 import shutil, filecmp
-
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'skilteplan_dialog_addsign.ui'))
-
 
 class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
     
@@ -63,30 +61,33 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
         self.btnSetDim.clicked.connect(self.setSignDim)
         
         self.buttonBox.accepted.connect(self.exitAddSign)
-        self.btnOK = self.buttonBox.button(QDialogButtonBox.Ok)
+        self.btnOK = self.buttonBox.button(QDialogButtonBox.StandardButton.Ok)
 
             
     def run(self):
-        QgsMessageLog.logMessage('Adding new signs: {}'.format(self.editSignName.text()), tag="skilteplan", level=Qgis.Info )
+        QgsMessageLog.logMessage('Adding new signs: {}'.format(self.editSignName.text()), tag="skilteplan", level=Qgis.MessageLevel.Info )
 
     
     def addSignFile(self,pathString,parent):
-        #QgsMessageLog.logMessage("Calling addSignFile", tag="skilteplan", level=Qgis.Info )
+        # 'parent' gemmes som hoveddialog og ikke som self.parent: QWidget
+        # har allerede en parent()-metode, og nu hvor dialogen faar en rigtig
+        # Qt-foraelder, ville de to betyde hver sit.
+
         self.mode = 'add'
-        self.parent = parent
+        self.hoveddialog = parent
         self.path = pathString
         self.showFileName.setText(pathString)
         path, file = os.path.split(pathString)
         
         signName = os.path.splitext(file)[0]
-        if not signName in self.parent.signNamesList:
+        if not signName in self.hoveddialog.signNamesList:
             self.editSignName.setText(signName)
         else:
             msgBox = QMessageBox()
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setIcon(QMessageBox.Icon.Warning)
             msgBox.setText("Skilt med dette navn findes allerede!\nOmdøb skiltet eller fortryd indsættelse...")
-            msgBox.setStandardButtons(QMessageBox.Ok)
-            msgBox.exec_()
+            msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msgBox.exec()
 
         self.editHeight.setValue(12)
         self.editWidth.setValue(12)
@@ -98,8 +99,8 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
     def editSignFile(self,signName,parent):
         self.mode = 'edit'
         self.signName = signName
-        self.parent = parent
-        self.path = os.path.join(self.parent.path_sign_graphics.filePath(),'.'.join((signName,'svg')))
+        self.hoveddialog = parent
+        self.path = os.path.join(self.hoveddialog.path_sign_graphics.filePath(),'.'.join((signName,'svg')))
         self.showFileName.setText(self.path)
 
         # Get sign properties from table
@@ -115,12 +116,7 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
             self.previewSign(self.path)
 
     def getSignProp(self,signName):
-        # Find skiltetyper table
-        signTable = None
-        for layer in QgsProject.instance().mapLayers().values():
-            if layer.name() == "skiltetyper":
-                signTable = layer
-                break
+        signTable = self.hoveddialog.skiltetyperLag()
 
         # Check if the layer is valid
         found = False
@@ -131,7 +127,7 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
                 # Iterate over matching features and collect attributes
                 for feature in signTable.getFeatures(request):
                     found = True
-                    retval = {'id' : feature["id"], 'desc' : feature["skiltebeskrivelse"], 'niveau' : feature["niveau"], 'bredde': feature["bredde"], 'hojde': feature["hojde"]}
+                    retval = {'desc' : feature["skiltebeskrivelse"], 'niveau' : feature["niveau"], 'bredde': feature["bredde"], 'hojde': feature["hojde"]}
                 
         if found:
             return retval
@@ -139,12 +135,7 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
             return None
 
     def saveSignProp(self, signName):
-        # Find skiltetyper table
-        signTable = None
-        for layer in QgsProject.instance().mapLayers().values():
-            if layer.name() == "skiltetyper":
-                signTable = layer
-                break
+        signTable = self.hoveddialog.skiltetyperLag()
 
         # Check if the layer is valid
         found = False
@@ -162,9 +153,23 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
                     feature.setAttribute("hojde", self.editHeight.value())
                     feature.setAttribute("bredde", self.editWidth.value())
                     signTable.updateFeature(feature)
-                signTable.commitChanges()
+
+                if not signTable.commitChanges():
+                    fejl = "\n".join(signTable.commitErrors())
+                    signTable.rollBack()
+                    self.visFejl("Aendringen kunne ikke gemmes:\n{}".format(fejl))
                 
         return found
+
+    def visFejl(self, tekst):
+        """Viser en fejlbesked og skriver den til QGIS-loggen."""
+        QgsMessageLog.logMessage(tekst, tag="skilteplan", level=Qgis.MessageLevel.Critical)
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Icon.Critical)
+        msgBox.setWindowTitle("Fejl")
+        msgBox.setText(tekst)
+        msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msgBox.exec()
 
     
     def previewSign(self,path):
@@ -182,10 +187,17 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
 
         # Show the view and set SVG item to fit
         self.signView.show()
-        self.signView.fitInView(svg_item, Qt.KeepAspectRatio)
+        self.signView.fitInView(svg_item, Qt.AspectRatioMode.KeepAspectRatio)
 
         # Calculate ratio between width and height of sign
-        self.hw_ratio = svg_item.boundingRect().width() / svg_item.boundingRect().height()
+        rect = svg_item.boundingRect()
+        if rect.height() > 0 and rect.width() > 0:
+            self.hw_ratio = rect.width() / rect.height()
+        else:
+            self.hw_ratio = 1.0
+            QgsMessageLog.logMessage(
+                "SVG'en '{}' kunne ikke laeses (tom boundingRect)".format(path),
+                tag="skilteplan", level=Qgis.MessageLevel.Warning)
 
     def setAddBtnState(self):
         # Check if relevant fields have been filled out
@@ -195,46 +207,42 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
             self.btnOK.setEnabled(False)
 
     def exitAddSign(self):
-        #QgsMessageLog.logMessage("Exiting addsign", tag="skilteplan", level=Qgis.Info )
+
         if self.mode == 'add':
-            found = False
-            for layer in QgsProject.instance().mapLayers().values():
-                if layer.name() == "skiltetyper":
-                    found = True
-                    break
-            
-            
+            layer = self.hoveddialog.skiltetyperLag()
+            found = layer is not None
+
             if found:
-                #QgsMessageLog.logMessage("Saving - found table", tag="skilteplan", level=Qgis.Info )
+
                 # Copy SVG file (if not already in path)
-                copypath = os.path.join(self.parent.path_sign_graphics.filePath(),'.'.join((self.editSignName.text(),'svg')))
-                #QgsMessageLog.logMessage("Copy path: {}".format(os.path.abspath(copypath)), tag="skilteplan", level=Qgis.Info )
-                #QgsMessageLog.logMessage("Path: {}".format(os.path.abspath(self.path)), tag="skilteplan", level=Qgis.Info )
-                
-                #if not os.path.samefile(os.path.abspath(copypath),os.path.abspath(self.path)):
-                #if os.path.abspath(copypath) != os.path.abspath(self.path):
+                copypath = os.path.join(self.hoveddialog.path_sign_graphics.filePath(),'.'.join((self.editSignName.text(),'svg')))
+
                 if not os.path.exists(os.path.abspath(copypath)) or not filecmp.cmp(os.path.abspath(copypath), os.path.abspath(self.path)):
-                    #QgsMessageLog.logMessage("No match", tag="skilteplan", level=Qgis.Info )
+
                     shutil.copy(self.path, copypath)
-                #else:
-                #    QgsMessageLog.logMessage("Matching!", tag="skilteplan", level=Qgis.Info )
 
                 layer.startEditing()
                 feature = QgsFeature()
-                feature.setFields(layer.fields())
+                feature.setFields(layer.fields(), True)
                 feature.setAttribute("skiltenavn",self.editSignName.text())
                 feature.setAttribute("skiltebeskrivelse",self.editSignDescription.text())
                 feature.setAttribute("niveau",self.cmbLevel.currentIndex()+1)
                 feature.setAttribute("hojde",self.editHeight.value())
                 feature.setAttribute("bredde",self.editWidth.value())
-                layer.addFeature(feature)
-                layer.commitChanges()
-                #QgsMessageLog.logMessage("Committed", tag="skilteplan", level=Qgis.Info )
+
+                if not layer.addFeature(feature):
+                    layer.rollBack()
+                    self.visFejl("Skiltet kunne ikke tilfoejes til tabellen 'skiltetyper'.")
+                elif not layer.commitChanges():
+                    fejl = "\n".join(layer.commitErrors())
+                    layer.rollBack()
+                    self.visFejl("Skiltet kunne ikke gemmes:\n{}".format(fejl))
+
         elif self.mode == 'edit':
             self.saveSignProp(self.signName)
         
         # Refresh sign list on parent dialog
-        self.parent.fillSignList()
+        self.hoveddialog.fillSignList()
 
     def setSignDim(self):
         self.previewSign(self.path)
