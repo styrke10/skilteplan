@@ -79,10 +79,10 @@
        </widget>
       </item><item row="7" column="0" colspan="2"><widget class="QLabel" name="lblSnapOverskrift"><property name="font"><font><bold>true</bold></font></property><property name="text"><string>Snapning og adresseopslag</string></property></widget></item><item row="8" column="0"><widget class="QLabel" name="label_3">
         <property name="text">
-         <string>Token til Dataforsyningen:</string>
+         <string>API-key til Datafordeleren:</string>
         </property>
        </widget>
-      </item><item row="8" column="1"><widget class="QLineEdit" name="datfor_token" />
+      </item><item row="8" column="1"><widget class="QLineEdit" name="datfor_api_key" />
       </item><item row="9" column="0"><widget class="QLabel" name="label_4">
         <property name="text">
          <string>Snaplag:</string>

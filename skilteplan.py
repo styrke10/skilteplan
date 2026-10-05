@@ -32,7 +32,7 @@ import shutil
 import re
 from xml.sax import saxutils
 from .expressions.getNearestAddress import getNearestAddress
-from .expressions.getParcelNumber import getParcelNumber
+from .expressions.getJordstykke import getJordstykke
 from .expressions.getRoadCodeAndName import getRoadCodeAndName
 from .expressions.rotateRoadSign import rotateRoadSign
 
@@ -52,7 +52,7 @@ class skilteplan:
                "skilteplanDB": None, 
                "skiltegrafik": None,
                "skilteafstand": None,
-               "datfor_token": None,
+               "datfor_api_key": None,
                "snaplag": None,
                "vejkodefelt": None,
                "vejnavnefelt": None }
@@ -167,7 +167,7 @@ class skilteplan:
         
         # Remove custom functions
         QgsExpression.unregisterFunction(getNearestAddress.name())
-        QgsExpression.unregisterFunction(getParcelNumber.name())
+        QgsExpression.unregisterFunction(getJordstykke.name())
         QgsExpression.unregisterFunction(getRoadCodeAndName.name())
         QgsExpression.unregisterFunction(rotateRoadSign.name())
         
@@ -225,7 +225,7 @@ class skilteplan:
                 grafikmappe = self.standardSkiltemappe() or ""
             self.dlg.path_sign_graphics.setFilePath(grafikmappe)
             self.dlg.signDistance.setValue(int(self.params["skilteafstand"]) if self.params["skilteafstand"] else 2)
-            self.dlg.datfor_token.setText(self.params["datfor_token"])
+            self.dlg.datfor_api_key.setText(self.params["datfor_api_key"] if self.params["datfor_api_key"] else None)
             layerlist = QgsProject.instance().mapLayersByName(self.params["snaplag"])
             if layerlist:
                 self.dlg.snaplayers.setLayer(layerlist[0])
@@ -257,7 +257,7 @@ class skilteplan:
         self.params["skilteplanDB"] = self.dlg.path_sign_db.filePath()
         self.params["skiltegrafik"] = self.dlg.path_sign_graphics.filePath()
         self.params["skilteafstand"] = self.dlg.signDistance.value()
-        self.params["datfor_token"] = self.dlg.datfor_token.text()
+        self.params["datfor_api_key"] = self.dlg.datfor_api_key.text()
         if not self.dlg.snaplayers.currentLayer() is None:
             self.params["snaplag"] = self.dlg.snaplayers.currentLayer().name()
         # Gemmes ogsaa naar de er tomme, saa et fravalg faktisk slaar igennem
@@ -288,13 +288,16 @@ class skilteplan:
         scope = QgsExpressionContextUtils.projectScope(QgsProject.instance())
 
         for key in self.params:
-            vaerdi = None
-            variabel = self.PROJEKTVARIABLER.get(key)
-            if variabel and scope is not None and scope.hasVariable(variabel):
-                vaerdi = scope.variable(variabel)
-            if vaerdi in (None, ""):
-                vaerdi = settings.value(prefix + key)
-            self.params[key] = vaerdi
+            if key == 'datfor_api_key':
+                self.params[key] = QgsExpressionContextUtils.globalScope().variable('dar_api_key')
+            else:
+                vaerdi = None
+                variabel = self.PROJEKTVARIABLER.get(key)
+                if variabel and scope is not None and scope.hasVariable(variabel):
+                    vaerdi = scope.variable(variabel)
+                if vaerdi in (None, ""):
+                    vaerdi = settings.value(prefix + key)
+                self.params[key] = vaerdi
 
     
     
@@ -321,8 +324,10 @@ class skilteplan:
         for key, variabel in self.PROJEKTVARIABLER.items():
             QgsExpressionContextUtils.setProjectVariable(
                 project, variabel, self.params[key])
-        QgsExpressionContextUtils.setProjectVariable(
-            project, 'token', self.params['datfor_token'])
+        
+        # API key til Datafordeleren sættes som global variabel (knyttet til den specifikke installation)
+        # dels for at forhindre kopiering ved deling af projekt, og dels fordi den anvendes generelt også af custom functions.
+        QgsExpressionContextUtils.setGlobalVariable('dar_api_key', self.params['datfor_api_key'])
     
     def installDB(self):
         """
@@ -953,16 +958,13 @@ class skilteplan:
                     "array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),0)"
                     if vejopslag else "", True))
             elif f.name() == 'adresse':
+                # Kraever en api key til Datafordeleren
                 skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("getNearestAddress( $x, $y)", True))
             elif f.name() == 'matrikel':
-                # Kraever et token til Dataforsyningen - uden det lades
-                # feltet staa tomt frem for at fejle ved hver indtegning
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue(
-                    "getParcelNumber( $x, $y, @token)"
-                    if self.params.get("datfor_token") else "", True))
+                # Kraever en api key til Datafordeleren
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("getJordstykke( $x, $y)", True))
 
         skiltelayer.updateFields()
-
         
         self.setSnapEnvironment()
         
