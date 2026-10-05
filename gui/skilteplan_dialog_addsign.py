@@ -27,7 +27,16 @@ import os
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtWidgets import QGraphicsScene, QDialogButtonBox, QMessageBox
-from qgis.PyQt.QtSvg import QGraphicsSvgItem
+
+# QGraphicsSvgItem ligger i QtSvg i Qt 5 (QGIS 3) og i QtSvgWidgets i Qt 6 (QGIS 4)
+try:
+    from qgis.PyQt.QtSvg import QGraphicsSvgItem
+except ImportError:
+    try:
+        from qgis.PyQt.QtSvgWidgets import QGraphicsSvgItem
+    except ImportError:
+        from PyQt6.QtSvgWidgets import QGraphicsSvgItem
+
 from qgis.PyQt.QtCore import Qt
 from qgis.core import Qgis, QgsFeature, QgsFeatureRequest, QgsMessageLog
 import shutil, filecmp

@@ -30,12 +30,21 @@ import zipfile
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 from qgis.PyQt.QtWidgets import QGraphicsScene, QFileDialog, QMessageBox, QListWidgetItem
-from qgis.PyQt.QtSvg import QGraphicsSvgItem, QSvgRenderer
-from qgis.PyQt.QtCore import Qt, QDate
+from qgis.PyQt.QtSvg import QSvgRenderer
+
+# QGraphicsSvgItem ligger i QtSvg i Qt 5 (QGIS 3) og i QtSvgWidgets i Qt 6 (QGIS 4)
+try:
+    from qgis.PyQt.QtSvg import QGraphicsSvgItem
+except ImportError:
+    try:
+        from qgis.PyQt.QtSvgWidgets import QGraphicsSvgItem
+    except ImportError:
+        from PyQt6.QtSvgWidgets import QGraphicsSvgItem
+
+from qgis.PyQt.QtCore import Qt, QDate, QCollator, QLocale
 from qgis.core import Qgis, QgsProject, QgsProviderRegistry, QgsVectorLayer, QgsMessageLog, QgsFeatureRequest, QgsFeature
 import os.path
-#from qgis.gui import QgsProviderConnectionComboBox
-#from qgis.gui import QgsDataSourceManagerDialog
+from functools import cmp_to_key
 
 from .skilteplan_dialog_addsign import skilteplanAddSignDialog
 from ..core import skilteplan_skema as skema
@@ -101,6 +110,10 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         self.btnGemPlan.setEnabled(False)
         self.planList.currentItemChanged.connect(self.indlaesValgtPlan)
         self.cmbPlanFilter.currentIndexChanged.connect(self.fillPlanList)
+        
+        # Sortering af skiltebiblioteket - navn er standard
+        self.rbtnSortByName.setChecked(True)
+        self.rbtnSortByName.toggled.connect(self.fillSignList)
 
         # 'Opret' kraever en fuldt udfyldt formular og ingen valgt plan
         for felt in (self.editPlanNavn, self.editPlanOrganisation,
@@ -621,33 +634,61 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         return None
 
     def fillSignList(self):
-        # Find skiltetyper table
+        """Fylder skiltebiblioteket, sorteret efter navn eller beskrivelse."""
 
         self.signNamesList = []
         signTable = self.skiltetyperLag()
 
-        if signTable is None:
-            self.signList.clear()
+        # Husk valget paa navn - raekkenummeret flytter sig, naar sorteringen skifter
+        currentItem = self.signList.currentItem()
+        currentName = currentItem.data(Qt.ItemDataRole.UserRole) if currentItem else None
+        currentRow = self.signList.currentRow()
+
+        self.signList.clear()
+        if signTable is None or not signTable.isValid():
             return
 
-        if signTable:
-            if signTable.isValid():
+        rows = []
+        for feature in signTable.getFeatures():
+            name = feature["skiltenavn"]
+            desc = feature["skiltebeskrivelse"]
+            rows.append((str(name) if name else "", str(desc) if desc else ""))
 
-                # Empty sign list if any content exists
-                current = self.signList.currentRow()
-                self.signList.clear()
-                self.signNamesList.clear()
-            
-                # Iterate over features in the layer
-                for feature in signTable.getFeatures():
-                    item = "{}\t{}".format(feature["skiltenavn"],feature["skiltebeskrivelse"])
-                    self.signList.addItem(item)
-                    self.signNamesList.append(feature["skiltenavn"])
-                
-                if current != -1:
-                    self.signList.setCurrentRow(current)
-                else:
-                    self.signList.setCurrentRow(0)
+        # Dansk sortering (æ, ø, å til sidst), uden forskel paa store/smaa bogstaver.
+        # Tal sorteres numerisk, saa 'A 2' kommer foer 'A 10'.
+        collator = QCollator(QLocale(QLocale.Language.Danish, QLocale.Country.Denmark))
+        collator.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        collator.setNumericMode(True)
+
+        sortCol = 1 if self.rbtnSortByDescription.isChecked() else 0
+        otherCol = 1 - sortCol
+
+        def compareRows(a, b):
+            result = collator.compare(a[sortCol], b[sortCol])
+            return result if result != 0 else collator.compare(a[otherCol], b[otherCol])
+
+        rows.sort(key=cmp_to_key(compareRows))
+
+        self.signList.blockSignals(True)
+        for name, desc in rows:
+            item = QListWidgetItem("{}\t{}".format(name, desc))
+            item.setData(Qt.ItemDataRole.UserRole, name)
+            self.signList.addItem(item)
+            self.signNamesList.append(name)
+        self.signList.blockSignals(False)
+
+        # Genvaelg samme skilt; ellers samme position (fx efter sletning); ellers foerste
+        newRow = 0
+        if currentName is not None:
+            for i in range(self.signList.count()):
+                if self.signList.item(i).data(Qt.ItemDataRole.UserRole) == currentName:
+                    newRow = i
+                    break
+            else:
+                newRow = max(0, min(currentRow, self.signList.count() - 1))
+        if self.signList.count():
+            self.signList.setCurrentRow(newRow) 
+ 
             
     def manglendeSkilte(self, mappe=None):
         """

@@ -635,7 +635,11 @@
             <Option type="QString" name="LayerProviderName" value="ogr"/>
             <Option type="QString" name="LayerSource" value="C:/Data/Aabenraa Kommune/skilteplan.gpkg|layername=skiltetyper"/>
             <Option type="int" name="NofColumns" value="1"/>
-            <Option type="bool" name="OrderByValue" value="false"/>
+            <Option type="bool" name="OrderByDescending" value="false"/>
+            <Option type="bool" name="OrderByField" value="false"/>
+            <Option type="QString" name="OrderByFieldName" value=""/>
+            <Option type="bool" name="OrderByKey" value="false"/>
+            <Option type="bool" name="OrderByValue" value="true"/>
             <Option type="bool" name="UseCompleter" value="false"/>
             <Option type="QString" name="Value" value="skiltebeskrivelse"/>
           </Option>
@@ -656,7 +660,11 @@
             <Option type="QString" name="LayerProviderName" value="ogr"/>
             <Option type="QString" name="LayerSource" value="C:/Data/Aabenraa Kommune/skilteplan.gpkg|layername=skiltetyper"/>
             <Option type="int" name="NofColumns" value="1"/>
-            <Option type="bool" name="OrderByValue" value="false"/>
+            <Option type="bool" name="OrderByDescending" value="false"/>
+            <Option type="bool" name="OrderByField" value="false"/>
+            <Option type="QString" name="OrderByFieldName" value=""/>
+            <Option type="bool" name="OrderByKey" value="false"/>
+            <Option type="bool" name="OrderByValue" value="true"/>
             <Option type="bool" name="UseCompleter" value="false"/>
             <Option type="QString" name="Value" value="skiltebeskrivelse"/>
           </Option>
@@ -677,7 +685,11 @@
             <Option type="QString" name="LayerProviderName" value="ogr"/>
             <Option type="QString" name="LayerSource" value="C:/Data/Aabenraa Kommune/skilteplan.gpkg|layername=skiltetyper"/>
             <Option type="int" name="NofColumns" value="1"/>
-            <Option type="bool" name="OrderByValue" value="false"/>
+            <Option type="bool" name="OrderByDescending" value="false"/>
+            <Option type="bool" name="OrderByField" value="false"/>
+            <Option type="QString" name="OrderByFieldName" value=""/>
+            <Option type="bool" name="OrderByKey" value="false"/>
+            <Option type="bool" name="OrderByValue" value="true"/>
             <Option type="bool" name="UseCompleter" value="false"/>
             <Option type="QString" name="Value" value="skiltebeskrivelse"/>
           </Option>
@@ -698,7 +710,11 @@
             <Option type="QString" name="LayerProviderName" value="ogr"/>
             <Option type="QString" name="LayerSource" value="C:/Data/Aabenraa Kommune/skilteplan.gpkg|layername=skiltetyper"/>
             <Option type="int" name="NofColumns" value="1"/>
-            <Option type="bool" name="OrderByValue" value="false"/>
+            <Option type="bool" name="OrderByDescending" value="false"/>
+            <Option type="bool" name="OrderByField" value="false"/>
+            <Option type="QString" name="OrderByFieldName" value=""/>
+            <Option type="bool" name="OrderByKey" value="false"/>
+            <Option type="bool" name="OrderByValue" value="true"/>
             <Option type="bool" name="UseCompleter" value="false"/>
             <Option type="QString" name="Value" value="skiltebeskrivelse"/>
           </Option>
@@ -719,7 +735,11 @@
             <Option type="QString" name="LayerProviderName" value="ogr"/>
             <Option type="QString" name="LayerSource" value="C:/Data/Aabenraa Kommune/skilteplan.gpkg|layername=skiltetyper"/>
             <Option type="int" name="NofColumns" value="1"/>
-            <Option type="bool" name="OrderByValue" value="false"/>
+            <Option type="bool" name="OrderByDescending" value="false"/>
+            <Option type="bool" name="OrderByField" value="false"/>
+            <Option type="QString" name="OrderByFieldName" value=""/>
+            <Option type="bool" name="OrderByKey" value="false"/>
+            <Option type="bool" name="OrderByValue" value="true"/>
             <Option type="bool" name="UseCompleter" value="false"/>
             <Option type="QString" name="Value" value="skiltebeskrivelse"/>
           </Option>
@@ -740,7 +760,11 @@
             <Option type="QString" name="LayerProviderName" value="ogr"/>
             <Option type="QString" name="LayerSource" value="C:/Data/Aabenraa Kommune/skilteplan.gpkg|layername=skiltetyper"/>
             <Option type="int" name="NofColumns" value="1"/>
-            <Option type="bool" name="OrderByValue" value="false"/>
+            <Option type="bool" name="OrderByDescending" value="false"/>
+            <Option type="bool" name="OrderByField" value="false"/>
+            <Option type="QString" name="OrderByFieldName" value=""/>
+            <Option type="bool" name="OrderByKey" value="false"/>
+            <Option type="bool" name="OrderByValue" value="true"/>
             <Option type="bool" name="UseCompleter" value="false"/>
             <Option type="QString" name="Value" value="skiltebeskrivelse"/>
           </Option>
