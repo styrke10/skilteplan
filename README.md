@@ -22,4 +22,5 @@ Version 1.0 er en gennemgribende omskrivning. De væsentligste ændringer for di
 •       **Projektet kan deles.** Opsætningen gemmes som projektvariabler, så en kollega kan åbne projektet og arbejde videre uden at sætte noget op.
 
 En (simpel) skilteplan kan f.eks. se således ud:
+
 <img width="624" height="500" alt="image" src="https://github.com/user-attachments/assets/8cb4d6f5-583d-407b-b4ec-550d7f931f2a" />
