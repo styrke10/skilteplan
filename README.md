@@ -1,7 +1,5 @@
 # QGIS-plugin 'Skilteplan'
 
-## Indledning og formål
-
 Skilteplaner udarbejdes ofte i forbindelse med midlertidige trafikomlægninger i forbindelse med f.eks. vejarbejder, ledningsarbejder, kortvarige arrangementer o.lign.
 
 Plugin'et 'Skilteplan' gør QGIS velegnet til at udarbejde skilteplaner: Skilte placeres på kortet, roteres automatisk efter en vejmidte eller vejkant og forskydes fra den med et valgt
