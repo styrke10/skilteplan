@@ -1,4 +1,4 @@
-# Vejledning til QGIS-plugin'et 'Skilteplan'
+# QGIS-plugin 'Skilteplan'
 
 ## Indledning og formål
 
