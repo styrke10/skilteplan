@@ -29,7 +29,8 @@ import zipfile
 
 from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
-from qgis.PyQt.QtWidgets import QGraphicsScene, QFileDialog, QMessageBox, QListWidgetItem
+from qgis.PyQt.QtWidgets import QGraphicsScene, QFileDialog, QMessageBox, QListWidgetItem, QTreeWidgetItem, QHeaderView
+from qgis.PyQt.QtGui import QPalette
 from qgis.PyQt.QtSvg import QSvgRenderer
 
 # QGraphicsSvgItem ligger i QtSvg i Qt 5 (QGIS 3) og i QtSvgWidgets i Qt 6 (QGIS 4)
@@ -41,8 +42,8 @@ except ImportError:
     except ImportError:
         from PyQt6.QtSvgWidgets import QGraphicsSvgItem
 
-from qgis.PyQt.QtCore import Qt, QDate, QCollator, QLocale
-from qgis.core import Qgis, QgsProject, QgsProviderRegistry, QgsVectorLayer, QgsMessageLog, QgsFeatureRequest, QgsFeature
+from qgis.PyQt.QtCore import Qt, QDate, QCollator, QLocale, QMetaType
+from qgis.core import Qgis, QgsProject, QgsProviderRegistry, QgsVectorLayer, QgsMessageLog, QgsFeatureRequest, QgsFeature, QgsExpression
 import os.path
 from functools import cmp_to_key
 
@@ -54,6 +55,11 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'skilteplan_dialog_base.ui'))
 
 class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
+
+    # Kolonner i skiltebiblioteket
+    KOL_NAVN = 0
+    KOL_BESKRIVELSE = 1
+    KOL_INAKTIV = 2
 
     def __init__(self, parent=None):
 
@@ -98,7 +104,14 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         }
         self.opsaetRolleCombos()
 
+        # Skiltebibliotek: Navn | Beskrivelse | Inaktiv
+        hoved = self.signList.header()
+        hoved.setStretchLastSection(False)
+        hoved.setSectionResizeMode(self.KOL_NAVN, QHeaderView.ResizeMode.ResizeToContents)
+        hoved.setSectionResizeMode(self.KOL_BESKRIVELSE, QHeaderView.ResizeMode.Stretch)
+        hoved.setSectionResizeMode(self.KOL_INAKTIV, QHeaderView.ResizeMode.ResizeToContents)
         self.signList.currentItemChanged.connect(self.changePreview)
+        self.signList.itemChanged.connect(self.skiftInaktiv)
         self.btnAddSign.clicked.connect(self.addSign)
         self.btnEditSign.clicked.connect(self.editSign)
         self.btnDeleteSign.clicked.connect(self.deleteSign)
@@ -641,18 +654,22 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
 
         # Husk valget paa navn - raekkenummeret flytter sig, naar sorteringen skifter
         currentItem = self.signList.currentItem()
-        currentName = currentItem.data(Qt.ItemDataRole.UserRole) if currentItem else None
-        currentRow = self.signList.currentRow()
+        currentName = currentItem.data(self.KOL_NAVN, Qt.ItemDataRole.UserRole) if currentItem else None
+        currentRow = self.signList.indexOfTopLevelItem(currentItem) if currentItem else 0
 
         self.signList.clear()
         if signTable is None or not signTable.isValid():
             return
 
+        harInaktiv = signTable.fields().indexOf("inaktiv") >= 0
+        self.signList.setColumnHidden(self.KOL_INAKTIV, not harInaktiv)
+
         rows = []
         for feature in signTable.getFeatures():
             name = feature["skiltenavn"]
             desc = feature["skiltebeskrivelse"]
-            rows.append((str(name) if name else "", str(desc) if desc else ""))
+            inaktiv = self.erInaktiv(feature["inaktiv"]) if harInaktiv else False
+            rows.append((str(name) if name else "", str(desc) if desc else "", inaktiv))
 
         # Dansk sortering (æ, ø, å til sidst), uden forskel paa store/smaa bogstaver.
         # Tal sorteres numerisk, saa 'A 2' kommer foer 'A 10'.
@@ -670,31 +687,42 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         rows.sort(key=cmp_to_key(compareRows))
 
         self.signList.blockSignals(True)
-        for name, desc in rows:
-            item = QListWidgetItem("{}\t{}".format(name, desc))
-            item.setData(Qt.ItemDataRole.UserRole, name)
-            self.signList.addItem(item)
+        for name, desc, inaktiv in rows:
+            item = QTreeWidgetItem(["", "", ""])
+            item.setText(self.KOL_NAVN, name)
+            item.setText(self.KOL_BESKRIVELSE, desc)
+            item.setData(self.KOL_NAVN, Qt.ItemDataRole.UserRole, name)
+            if harInaktiv:
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                item.setCheckState(self.KOL_INAKTIV,
+                                   Qt.CheckState.Checked if inaktiv else Qt.CheckState.Unchecked)
+            self.markerInaktiv(item, inaktiv)
+            self.signList.addTopLevelItem(item)
             self.signNamesList.append(name)
         self.signList.blockSignals(False)
 
         # Genvaelg samme skilt; ellers samme position (fx efter sletning); ellers foerste
+        antal = self.signList.topLevelItemCount()
         newRow = 0
         if currentName is not None:
-            for i in range(self.signList.count()):
-                if self.signList.item(i).data(Qt.ItemDataRole.UserRole) == currentName:
+            for i in range(antal):
+                if self.signList.topLevelItem(i).data(self.KOL_NAVN, Qt.ItemDataRole.UserRole) == currentName:
                     newRow = i
                     break
             else:
-                newRow = max(0, min(currentRow, self.signList.count() - 1))
-        if self.signList.count():
-            self.signList.setCurrentRow(newRow) 
+                newRow = max(0, min(currentRow, antal - 1))
+        if antal:
+            self.signList.setCurrentItem(self.signList.topLevelItem(newRow))
  
             
     def manglendeSkilte(self, mappe=None):
         """
         SVG-filer i skiltegrafikmappen, som mangler i skiltetyper-tabellen.
 
-        Returnerer en liste af (navn, beskrivelse, niveau, bredde, hojde).
+        Returnerer en liste af (navn, beskrivelse, niveau, bredde, hojde, inaktiv).
+
+        inaktiv arves fra standardbiblioteket. Skilte, der ikke findes dér,
+        er brugerens egne tilfoejelser og oprettes som aktive.
         """
         mappe = mappe or self.path_sign_graphics.filePath()
         lag = self.skiltetyperLag()
@@ -719,11 +747,93 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
             kendt = metadata.get(navn)
             if kendt:
                 nye.append((navn, kendt["beskrivelse"], kendt["niveau"],
-                            kendt["bredde"], kendt["hojde"]))
+                            kendt["bredde"], kendt["hojde"],
+                            bool(kendt.get("inaktiv", False))))
             else:
                 bredde, hojde = self.svgDimensioner(os.path.join(mappe, filnavn))
-                nye.append((navn, navn, self.gaetNiveau(navn), bredde, hojde))
+                nye.append((navn, navn, self.gaetNiveau(navn), bredde, hojde, False))
         return nye
+
+    @staticmethod
+    def erInaktiv(vaerdi):
+        """NULL og 0/False er aktiv; alt andet sandt er inaktiv."""
+        if vaerdi is None:
+            return False
+        try:
+            if hasattr(vaerdi, "isNull") and vaerdi.isNull():
+                return False
+        except Exception:
+            pass
+        return bool(vaerdi)
+
+    @staticmethod
+    def inaktivVaerdi(lag, inaktiv):
+        """
+        Vaerdien der skal skrives i 'inaktiv': True/False i et boolean-felt,
+        1/0 hvis feltet er et heltal (fx Esri, der ikke har boolean).
+        """
+        idx = lag.fields().indexOf("inaktiv")
+        if idx >= 0 and lag.fields()[idx].type() != QMetaType.Type.Bool:
+            return 1 if inaktiv else 0
+        return bool(inaktiv)
+
+    def markerInaktiv(self, item, inaktiv):
+        """Graar navn og beskrivelse ud paa inaktive skilte."""
+        gruppe = QPalette.ColorGroup.Disabled if inaktiv else QPalette.ColorGroup.Active
+        farve = self.signList.palette().color(gruppe, QPalette.ColorRole.Text)
+        for kol in (self.KOL_NAVN, self.KOL_BESKRIVELSE):
+            item.setForeground(kol, farve)
+
+    def valgtSkilt(self):
+        """(navn, beskrivelse) for det valgte skilt, eller (None, None)."""
+        item = self.signList.currentItem()
+        if item is None:
+            return None, None
+        return (item.data(self.KOL_NAVN, Qt.ItemDataRole.UserRole),
+                item.text(self.KOL_BESKRIVELSE))
+
+    def skiftInaktiv(self, item, kolonne):
+        """Gemmer afkrydsningen i 'inaktiv', naar brugeren klikker i feltet."""
+        if kolonne != self.KOL_INAKTIV:
+            return
+
+        lag = self.skiltetyperLag()
+        if lag is None or lag.fields().indexOf("inaktiv") < 0:
+            return
+
+        navn = item.data(self.KOL_NAVN, Qt.ItemDataRole.UserRole)
+        inaktiv = item.checkState(self.KOL_INAKTIV) == Qt.CheckState.Checked
+        idx = lag.fields().indexOf("inaktiv")
+        udtryk = '"skiltenavn" = {}'.format(QgsExpression.quotedValue(navn))
+
+        # Laget kan vaere i redigeringstilstand i forvejen - saa lader vi
+        # brugeren selv gemme og roerer ikke ved deres oevrige aendringer
+        varRedigerbart = lag.isEditable()
+        if not varRedigerbart:
+            lag.startEditing()
+
+        ok = True
+        for f in lag.getFeatures(QgsFeatureRequest().setFilterExpression(udtryk)):
+            ok = lag.changeAttributeValue(f.id(), idx, self.inaktivVaerdi(lag, inaktiv)) and ok
+
+        if ok and not varRedigerbart and not lag.commitChanges():
+            fejl = "\n".join(lag.commitErrors())
+            lag.rollBack()
+            ok = False
+            self.visBesked("'{}' kunne ikke gemmes:\n{}".format(navn, fejl),
+                           QMessageBox.Icon.Critical)
+        elif not ok and not varRedigerbart:
+            lag.rollBack()
+
+        if not ok:
+            # Saet afkrydsningen tilbage, saa listen ikke viser noget forkert
+            self.signList.blockSignals(True)
+            item.setCheckState(self.KOL_INAKTIV,
+                               Qt.CheckState.Unchecked if inaktiv else Qt.CheckState.Checked)
+            self.signList.blockSignals(False)
+            inaktiv = not inaktiv
+
+        self.markerInaktiv(item, inaktiv)
 
     def tilfoejSkilte(self, nye):
         """
@@ -749,7 +859,8 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
 
         lag.startEditing()
         tilfoejet = 0
-        for navn, beskrivelse, niveau, bredde, hojde in nye:
+        harInaktiv = lag.fields().indexOf("inaktiv") >= 0
+        for navn, beskrivelse, niveau, bredde, hojde, inaktiv in nye:
             feature = QgsFeature()
             feature.setFields(lag.fields(), True)
             feature.setAttribute("skiltenavn", navn)
@@ -757,6 +868,8 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
             feature.setAttribute("niveau", niveau)
             feature.setAttribute("bredde", bredde)
             feature.setAttribute("hojde", hojde)
+            if harInaktiv:
+                feature.setAttribute("inaktiv", self.inaktivVaerdi(lag, inaktiv))
             if lag.addFeature(feature):
                 tilfoejet += 1
 
@@ -907,14 +1020,85 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
                            ", ".join(uden_metadata)))
         self.visBesked(besked, QMessageBox.Icon.Information)
 
+    STANDARDBIBLIOTEK = "skiltetyper_standard.tsv"
+
+    @staticmethod
+    def _sandhed(vaerdi):
+        """'true'/'1'/'ja' -> True; alt andet (inkl. tomt og NULL) -> False."""
+        if vaerdi is None:
+            return False
+        try:
+            if hasattr(vaerdi, "isNull") and vaerdi.isNull():
+                return False
+        except Exception:
+            pass
+        if isinstance(vaerdi, str):
+            return vaerdi.strip().lower() in ("true", "t", "1", "ja", "yes")
+        return bool(vaerdi)
+
+    def standardbibliotek(self):
+        """
+        Standardopsaetningen af skiltebiblioteket fra data/skiltetyper_standard.tsv.
+
+        Tabulatorsepareret UTF-8 med kolonnerne skiltenavn, skiltebeskrivelse,
+        niveau, bredde, hojde og inaktiv. Filen er tekst, saa aendringer i
+        standarden kan ses i versionsstyringen, og den kraever ingen
+        udpakning. Returnerer None, hvis filen ikke findes eller ikke kan laeses.
+        """
+        sti = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                           "data", self.STANDARDBIBLIOTEK)
+        if not os.path.isfile(sti):
+            return None
+
+        import csv
+        metadata = {}
+        try:
+            with open(sti, encoding="utf-8-sig", newline="") as fil:
+                for raekke in csv.DictReader(fil, delimiter="\t"):
+                    navn = (raekke.get("skiltenavn") or "").strip()
+                    if not navn:
+                        continue
+                    if navn in metadata:
+                        QgsMessageLog.logMessage(
+                            "Dublet i {}: {} - den sidste bruges".format(
+                                self.STANDARDBIBLIOTEK, navn),
+                            tag="skilteplan", level=Qgis.MessageLevel.Warning)
+
+                    def tal(felt, type_, standard):
+                        try:
+                            return type_(str(raekke.get(felt)).replace(",", "."))
+                        except (TypeError, ValueError):
+                            return standard
+
+                    metadata[navn] = {
+                        "beskrivelse": (raekke.get("skiltebeskrivelse") or navn).strip(),
+                        "niveau": tal("niveau", int, self.gaetNiveau(navn)),
+                        "bredde": tal("bredde", float, 12),
+                        "hojde": tal("hojde", float, 12),
+                        "inaktiv": self._sandhed(raekke.get("inaktiv")),
+                    }
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                "Kunne ikke laese {}: {}".format(self.STANDARDBIBLIOTEK, e),
+                tag="skilteplan", level=Qgis.MessageLevel.Warning)
+            return None
+        return metadata
+
     def skiltemetadata(self):
         """
-        Beskrivelser og niveauer fra det medfoelgende bibliotek i db.zip.
+        Standardopsaetningen for nye skilte: beskrivelse, niveau, maal og
+        inaktiv-status. Beskrivelser som 'Hoejresving forbudt' kan ikke
+        udledes af filnavnet, saa de skal komme et sted fra.
 
-        Beskrivelser som 'Hoejresving forbudt' kan ikke udledes af filnavnet,
-        saa de hentes fra den leverede GeoPackage, naar den findes.
-        Returnerer {skiltenavn: {'beskrivelse','niveau','bredde','hojde'}}.
+        Hentes fra data/skiltetyper_standard.tsv. Findes den ikke, bruges
+        skiltetyper-tabellen i db.zip som tidligere.
+
+        Returnerer {skiltenavn: {'beskrivelse','niveau','bredde','hojde','inaktiv'}}.
         """
+        standard = self.standardbibliotek()
+        if standard:
+            return standard
+
         # db.zip ligger i data/, ét niveau over gui/
         zip_sti = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "data", "db.zip")
@@ -950,6 +1134,8 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
                     "niveau": f["niveau"],
                     "bredde": f["bredde"],
                     "hojde": f["hojde"],
+                    "inaktiv": (self._sandhed(f["inaktiv"])
+                                if lag.fields().indexOf("inaktiv") >= 0 else False),
                 }
 
             if dubletter:
@@ -1004,9 +1190,8 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         msgBox.exec()
 
     def changePreview(self):
-        if self.signList.currentItem():
-
-            name = self.signList.currentItem().text().split("\t")[0]
+        name, _ = self.valgtSkilt()
+        if name:
             img_path = os.path.join(self.path_sign_graphics.filePath(),'.'.join((name,'svg')))
             self.previewSign(img_path)
     
@@ -1034,26 +1219,23 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
             self.dlg.show()
 
     def editSign(self):
-        if not self.signList.currentItem():
+        name, _ = self.valgtSkilt()
+        if not name:
             return
-
-        name = self.signList.currentItem().text().split("\t")[0]
 
         self.dlg = skilteplanAddSignDialog(self)
         self.dlg.editSignFile(name,self)
         self.dlg.show()
 
     def deleteSign(self):
-        if not self.signList.currentItem():
+        name, desc = self.valgtSkilt()
+        if not name:
             return
 
         layer = self.skiltetyperLag()
         found = layer is not None
 
         if found:
-            name = self.signList.currentItem().text().split("\t")[0]
-            desc = self.signList.currentItem().text().split("\t")[1]
-
             layer.startEditing()
             request = QgsFeatureRequest().setFilterExpression('"skiltenavn" = \'{}\''.format(name))
 

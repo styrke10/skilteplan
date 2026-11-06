@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS skilteplan.skiltetyper
     niveau integer,
     bredde double precision,
     hojde double precision,
+    inaktiv boolean DEFAULT false,
     CONSTRAINT skiltetyper_pkey PRIMARY KEY (id)
 );
 

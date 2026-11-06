@@ -238,6 +238,8 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
                 feature.setAttribute("niveau",self.cmbLevel.currentIndex()+1)
                 feature.setAttribute("hojde",self.editHeight.value())
                 feature.setAttribute("bredde",self.editWidth.value())
+                if layer.fields().indexOf("inaktiv") >= 0:
+                    feature.setAttribute("inaktiv", self.hoveddialog.inaktivVaerdi(layer, False))
 
                 if not layer.addFeature(feature):
                     layer.rollBack()

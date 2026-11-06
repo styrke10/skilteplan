@@ -711,6 +711,26 @@ class skilteplan:
 
         return qml
 
+    # Led i ValueRelation-filteret, der skjuler inaktive skilte. coalesce goer
+    # NULL til aktiv, og 'not' virker baade paa boolean og paa et 0/1-heltal.
+    INAKTIV_FILTER = 'not coalesce("inaktiv", false)'
+
+    @classmethod
+    def skiltetypeFilter(cls, eksisterende, harInaktiv):
+        """
+        Filterudtrykket for en skiltetype-rulleliste.
+
+        Bevarer det eksisterende filter (niveau = 1 / niveau = 2) og tilfoejer
+        INAKTIV_FILTER, hvis skiltetyper har feltet. Et tidligere tilfoejet
+        led fjernes foerst, saa funktionen kan koeres flere gange.
+        """
+        filt = str(eksisterende or "")
+        filt = filt.replace(" AND " + cls.INAKTIV_FILTER, "")
+        filt = filt.replace(cls.INAKTIV_FILTER, "").strip()
+        if not harInaktiv:
+            return filt
+        return "{} AND {}".format(filt, cls.INAKTIV_FILTER) if filt else cls.INAKTIV_FILTER
+
     def retValueRelationLag(self, skiltelayer, typelayer, planlayer):
         """
         Saetter lag, noegle- og visningskolonne paa ValueRelation-felterne.
@@ -749,6 +769,13 @@ class skilteplan:
             config["LayerProviderName"] = maallag.providerType()
             config["Key"] = noegle
             config["Value"] = visning
+
+            # Uden feltet ville filteret fejle og give en tom liste, saa det
+            # tilfoejes kun, naar skiltetyper faktisk har kolonnen
+            if rolle == skema.ROLLE_SKILTETYPER:
+                config["FilterExpression"] = self.skiltetypeFilter(
+                    config.get("FilterExpression"),
+                    maallag.fields().indexOf("inaktiv") >= 0)
 
             skiltelayer.setEditorWidgetSetup(
                 idx, QgsEditorWidgetSetup("ValueRelation", config))

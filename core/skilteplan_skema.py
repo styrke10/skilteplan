@@ -72,14 +72,21 @@ JOIN_FELTER = [
 ]
 
 
-def _felt(navn, qtype, laengde=0, sqltype=None, noegle=False):
-    """Et enkelt feltdefinition. sqltype bruges kun ved SQL-generering."""
+def _felt(navn, qtype, laengde=0, sqltype=None, noegle=False, valgfri=False):
+    """
+    Et enkelt feltdefinition. sqltype bruges kun ved SQL-generering.
+
+    valgfri=True betyder, at feltet oprettes i nye tabeller, men at et
+    eksisterende lag uden feltet stadig godkendes (med en advarsel). Bruges
+    til felter, der er kommet til efter version 1.0.
+    """
     return {
         "navn": navn,
         "qtype": qtype,
         "laengde": laengde,
         "sqltype": sqltype,
         "noegle": noegle,
+        "valgfri": valgfri,
     }
 
 
@@ -123,6 +130,12 @@ SKEMA = {
             _felt("niveau", QMetaType.Type.Int, sqltype="integer"),
             _felt("bredde", QMetaType.Type.Double, sqltype="double precision"),
             _felt("hojde", QMetaType.Type.Double, sqltype="double precision"),
+            # Inaktive skilte bliver i biblioteket, men vises ikke i
+            # rullelisterne, naar der vaelges skilte til et punkt. NULL
+            # regnes som aktiv. I Esri-geodatabaser, der ikke har boolean,
+            # kan feltet vaere et heltal med 0/1.
+            _felt("inaktiv", QMetaType.Type.Bool, sqltype="boolean DEFAULT false",
+                  valgfri=True),
         ],
     },
     ROLLE_SKILTEPLAN: {
@@ -441,7 +454,12 @@ def validerLag(lag, rolle):
     for fdef in felter(rolle):
         fundet = tilstede.get(fdef["navn"].lower())
         if fundet is None:
-            manglende.append(fdef["navn"])
+            if fdef.get("valgfri"):
+                res.advarsler.append(
+                    "Det valgfrie felt '{}' mangler i '{}'. Tilfoej det for at "
+                    "faa den tilhoerende funktion.".format(fdef["navn"], lag.name()))
+            else:
+                manglende.append(fdef["navn"])
             continue
 
         vent = _familie(fdef["qtype"])
