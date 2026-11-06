@@ -96,7 +96,7 @@ def opretAtlaslag(project, skiltelayer, planlayer, navn=ATLASLAG_NAVN):
             aarsag = "ukendt"
         raise IOError(
             "Det virtuelle atlaslag kunne ikke oprettes.\n\n{}\n\n"
-            "Definitionen staar i QGIS-loggen under 'skilteplan'.".format(aarsag))
+            "Definitionen står i QGIS-loggen under 'skilteplan'.".format(aarsag))
 
     # Tilfoejes uden for lagtraeet og laegges derefter nederst i roden -
     # det er en hjaelpegeometri, ikke noget man arbejder i
@@ -141,7 +141,7 @@ def _retAtlaskilde(doc, atlaslag):
         rettet += 1
 
     QgsMessageLog.logMessage(
-        "Atlasdaekning i skabelonen sat til '{}' ({} element)".format(
+        "Atlasdækning i skabelonen sat til '{}' ({} element)".format(
             atlaslag.name(), rettet),
         tag="skilteplan", level=Qgis.MessageLevel.Info)
     return rettet
@@ -160,7 +160,7 @@ def opretLayout(project, atlaslag, navn=LAYOUT_NAVN, overskriv=False):
     if eksisterende is not None:
         if not overskriv:
             QgsMessageLog.logMessage(
-                "Layoutet '{}' findes i forvejen og blev ikke aendret".format(navn),
+                "Layoutet '{}' findes i forvejen og blev ikke ændret".format(navn),
                 tag="skilteplan", level=Qgis.MessageLevel.Info)
             return eksisterende
         manager.removeLayout(eksisterende)
@@ -183,13 +183,13 @@ def opretLayout(project, atlaslag, navn=LAYOUT_NAVN, overskriv=False):
     svar = layout.loadFromTemplate(doc, QgsReadWriteContext())
     ok = svar[1] if isinstance(svar, tuple) and len(svar) > 1 else bool(svar)
     if not ok:
-        raise IOError("Layoutskabelonen kunne ikke indlaeses.")
+        raise IOError("Layoutskabelonen kunne ikke indlæses.")
 
     layout.setName(navn)
     manager.addLayout(layout)
 
     QgsMessageLog.logMessage(
-        "Layoutet '{}' indlaest fra {}".format(navn, SKABELON),
+        "Layoutet '{}' indlæst fra {}".format(navn, SKABELON),
         tag="skilteplan", level=Qgis.MessageLevel.Info)
     return layout
 

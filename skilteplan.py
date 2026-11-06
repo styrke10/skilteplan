@@ -25,7 +25,9 @@
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QMessageBox
-from qgis.core import QgsProject, QgsSnappingConfig, QgsTolerance, QgsExpression, QgsSettings, QgsMessageLog, Qgis, QgsExpressionContextUtils, QgsVectorLayer, \
+from qgis.PyQt.QtCore import QMetaType
+from qgis.core import QgsProject, QgsSnappingConfig, QgsTolerance, QgsExpression, QgsSettings, QgsMessageLog, \
+                      Qgis, QgsExpressionContextUtils, QgsVectorLayer, QgsField, QgsVectorLayer, \
                       QgsVectorLayerJoinInfo, QgsDefaultValue, QgsEditorWidgetSetup, QgsDataSourceUri
 import zipfile
 import shutil
@@ -383,28 +385,28 @@ class skilteplan:
             if self.indlaesOprettedeLag("gpkg", sti=sti):
                 QMessageBox.information(
                     None, "Oprettet",
-                    "Skilteplansdatabasen er oprettet og lagene er indlaest "
+                    "Skilteplansdatabasen er oprettet og lagene er indlæst "
                     "og tilknyttet:\n{}".format(sti))
                 return
 
         QMessageBox.information(
             None, "Oprettet",
             "Skilteplansdatabasen er oprettet:\n{}\n\n"
-            "Hent lagene ind i projektet og tilknyt dem paa foerste "
+            "Hent lagene ind i projektet og tilknyt dem på foerste "
             "faneblad.".format(sti))
 
     def opretPostgis(self):
         """Opretter de tre tabeller i den valgte PostGIS-forbindelse."""
         forbindelse = self.dlg.cmbConnections.currentText()
         if not forbindelse:
-            self.visFejl("Vaelg foerst en PostGIS-forbindelse.")
+            self.visFejl("Vælg først en PostGIS-forbindelse.")
             return
 
         svar = QMessageBox.question(
             None, "Opret tabeller",
-            "Opret skilteplanstabellerne i skemaet 'skilteplan' paa "
+            "Opret skilteplanstabellerne i skemaet 'skilteplan' på "
             "forbindelsen '{}'?\n\n"
-            "Eksisterende tabeller med samme navn roeres ikke.".format(forbindelse),
+            "Eksisterende tabeller med samme navn røres ikke.".format(forbindelse),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if svar != QMessageBox.StandardButton.Yes:
             return
@@ -420,13 +422,13 @@ class skilteplan:
                 QMessageBox.information(
                     None, "Oprettet",
                     "Tabellerne er oprettet i skemaet 'skilteplan' og lagene "
-                    "er indlaest og tilknyttet.")
+                    "er indlæst og tilknyttet.")
                 return
 
         QMessageBox.information(
             None, "Oprettet",
             "Tabellerne er oprettet i skemaet 'skilteplan'.\n\n"
-            "Hent lagene ind i projektet og tilknyt dem paa foerste faneblad.")
+            "Hent lagene ind i projektet og tilknyt dem på første faneblad.")
 
     def standardSkiltemappe(self):
         """
@@ -501,7 +503,7 @@ class skilteplan:
                 lag = QgsVectorLayer(uri.uri(False), rolle, "postgres")
 
             if not lag.isValid():
-                self.visFejl("Laget '{}' kunne ikke indlaeses efter oprettelsen.".format(rolle))
+                self.visFejl("Laget '{}' kunne ikke indlæses efter oprettelsen.".format(rolle))
                 return {}
             project.addMapLayer(lag)
             indlaest[rolle] = lag
@@ -527,7 +529,7 @@ class skilteplan:
             return
 
         mappe = QFileDialog().getExistingDirectory(
-            None, "Vaelg mappe til skiltegrafik")
+            None, "Vælg mappe til skiltegrafik")
         if not mappe:
             return
 
@@ -616,7 +618,7 @@ class skilteplan:
             # Falder tilbage paa den almindelige indlaesning - saa kommer
             # advarslen om formularafhaengighed, men stilen bliver sat
             QgsMessageLog.logMessage(
-                "Kunne ikke forudrette skilte.qml ({}) - indlaeser direkte".format(e),
+                "Kunne ikke forudrette skilte.qml ({}) - indlæser direkte".format(e),
                 tag="skilteplan", level=Qgis.MessageLevel.Warning)
             skiltelayer.loadNamedStyle(sti)
 
@@ -701,7 +703,7 @@ class skilteplan:
             QgsMessageLog.logMessage(
                 "skilte.qml refererede et ukendt lagnavn - {} opslag sat til "
                 "'{}'. Stilfilen er sandsynligvis gemt tilbage fra et projekt "
-                "og boer gendannes fra kildeudgaven.".format(antal, nyt_id),
+                "og bør gendannes fra kildeudgaven.".format(antal, nyt_id),
                 tag="skilteplan", level=Qgis.MessageLevel.Warning)
         else:
             QgsMessageLog.logMessage(
@@ -782,15 +784,15 @@ class skilteplan:
             rettet += 1
 
         QgsMessageLog.logMessage(
-            "ValueRelation sat paa {} felter".format(rettet),
+            "ValueRelation sat på {} felter".format(rettet),
             tag="skilteplan", level=Qgis.MessageLevel.Info)
 
         if mangler:
             self.visFejl(
-                "Rullelisterne i attributformularen vil vaere tomme:\n\n- {}\n\n"
-                "Laget er sandsynligvis oprettet med en aeldre udgave af "
-                "plugin'et. Koer migration_til_1-0.sql, eller opret en ny "
-                "database paa fanebladet 'Opret datakilde'.".format(
+                "Rullelisterne i attributformularen vil være tomme:\n\n- {}\n\n"
+                "Laget er sandsynligvis oprettet med en ældre udgave af "
+                "plugin'et. Kør migration_til_1-0.sql, eller opret en ny "
+                "database på fanebladet 'Opret datakilde'.".format(
                     "\n- ".join(mangler)))
 
         return rettet
@@ -840,7 +842,7 @@ class skilteplan:
 
         if omdoebt:
             QgsMessageLog.logMessage(
-                "Lag omdoebt: {}".format(", ".join(omdoebt)),
+                "Lag omdøbt: {}".format(", ".join(omdoebt)),
                 tag="skilteplan", level=Qgis.MessageLevel.Info)
         return omdoebt
 
@@ -860,13 +862,59 @@ class skilteplan:
         if idx < 0:
             QgsMessageLog.logMessage(
                 "Laget 'skilteplan' har ingen planid-kolonne - "
-                "autonummerering slaaet fra",
+                "autonummerering slået fra",
                 tag="skilteplan", level=Qgis.MessageLevel.Warning)
             return False
 
         planlayer.setDefaultValueDefinition(
             idx, QgsDefaultValue(skema.DEFAULT_PLANID, True))
         return True
+
+    def addCategoryField(self, layer, fieldName):
+        # Tilfoejer et virtuelt felt til skiltetype tabellen, som udtrækker skiltekategorien
+        # fra skiltenavnet, idet den indledende del af navnet (før cifrene) henviser til dette.
+
+        # Definér expression, som udtrækker bogstavdelen af navnet og matcher dette med kategori.
+        KATEGORI_EXPRESSION = """
+            with_variable(
+                'kategori',
+                regexp_substr("skiltenavn", '^[A-Z]+'),
+                @kategori
+                || ' - ' ||
+                coalesce(
+                    map_get(
+                        map('A', 'Advarselstavler',
+                            'B', 'Vigepligtstavler',
+                            'C', 'Forbudstavler',
+                            'D', 'Påbudstavler',
+                            'E', 'Oplysningstavler',
+                            'M', 'Infotavler',
+                            'U', 'Undertavler',
+                            'UA', 'Undertavler til advarselstavler',
+                            'UB', 'Undertavler til vigepligtstavler',
+                            'UC', 'Undertavler til forbudstavler',
+                            'UD', 'Undertavler til påbudstavler',
+                            'UE', 'Undertavler til oplysningstavler'
+                        ),
+                        @kategori
+                    ),
+                    '<ukendt>'
+                )
+            )
+            """
+
+        # Tilfoej virtuelt felt eller opdatér dets expression, hvis det allerede eksisterer
+        fields = layer.fields()
+        existingIdx = fields.indexOf(fieldName)
+        if existingIdx != -1:
+            if fields.fieldOrigin(existingIdx) == Qgis.FieldOrigin.Expression:
+                layer.updateExpressionField(existingIdx, KATEGORI_EXPRESSION)
+                return existingIdx
+            raise ValueError(f"Layer already has a regular field named '{fieldName}'")
+
+        return layer.addExpressionField(
+            KATEGORI_EXPRESSION, QgsField(fieldName, QMetaType.Type.QString)
+        )
 
     def prepareProject(self):
 
@@ -884,7 +932,7 @@ class skilteplan:
         valgte = self.dlg.tilknyttedeLag()
         manglende = [r for r in skema.ROLLER if r not in valgte]
         if manglende:
-            self.visFejl("Foelgende roller mangler et lag: {}".format(
+            self.visFejl("Følgende roller mangler et lag: {}".format(
                 ", ".join(manglende)))
             return
 
@@ -906,6 +954,9 @@ class skilteplan:
 
         # Sikr at biblioteket kender alle skilte i grafikmappen
         self.dlg.synkroniserSkiltebibliotek()
+
+        # Opsaet virtuelt kategori-felt på skiltetype tabellen
+        n = self.addCategoryField(typelayer, 'kategori')
 
         # Symbologi og attributformular
         self.indlaesStil(skiltelayer, typelayer, planlayer)
@@ -1012,6 +1063,8 @@ class skilteplan:
 
             
         QgsMessageLog.logMessage("Finished preparing project!", tag="skilteplan", level=Qgis.MessageLevel.Info )
+        QMessageBox.information(None, "Klargør projekt","Projektet er klargjort!")
+
         
     def setSnapEnvironment(self):
         project = QgsProject.instance()

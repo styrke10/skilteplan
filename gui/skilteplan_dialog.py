@@ -295,7 +295,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
             self.txtValidering.setPlainText(
                 "Ingen lag udpeget endnu.\n\n"
                 "Hent skiltelagene ind i projektet fra den datakilde, du "
-                "bruger, og vaelg dem herover.")
+                "bruger, og vælg dem herover.")
             return False
 
         alt_ok = True
@@ -485,7 +485,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
     def gemSkilteplan(self):
         """Gemmer formularen paa den plan, der er valgt i listen."""
         if self._valgtPlanId is None:
-            self.visBesked("Vaelg foerst en skilteplan i listen.", QMessageBox.Icon.Warning)
+            self.visBesked("Vælg først en skilteplan i listen.", QMessageBox.Icon.Warning)
             return
 
         lag = self.skilteplanLag()
@@ -515,7 +515,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         if not lag.commitChanges():
             fejl = "\n".join(lag.commitErrors())
             lag.rollBack()
-            self.visBesked("Aendringerne kunne ikke gemmes:\n{}".format(fejl),
+            self.visBesked("Ændringerne kunne ikke gemmes:\n{}".format(fejl),
                            QMessageBox.Icon.Critical)
             return
 
@@ -533,7 +533,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         if not stadig_synlig:
             # Typisk efter at datoerne er aendret, saa planen skifter mellem
             # aktuel og tidligere - ellers ser den ud til at forsvinde
-            besked += ("\n\nDen vises ikke laengere under '{}' - skift filter "
+            besked += ("\n\nDen vises ikke længere under '{}' - skift filter "
                        "for at se den.".format(self.cmbPlanFilter.currentText()))
         self.visBesked(besked, QMessageBox.Icon.Information)
 
@@ -547,7 +547,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         start = self.datePlanStart.date()
         slut = self.datePlanSlut.date()
         if slut < start:
-            self.visBesked("Slutdatoen ligger foer startdatoen.", QMessageBox.Icon.Warning)
+            self.visBesked("Slutdatoen ligger før startdatoen.", QMessageBox.Icon.Warning)
             return None, None, None
         return navn, start, slut
 
@@ -586,8 +586,8 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         """Opretter en ny raekke i skilteplan-tabellen."""
         lag = self.skilteplanLag()
         if lag is None:
-            self.visBesked("Tilknyt foerst et lag til rollen 'skilteplan' "
-                           "paa fanebladet 'Opsaetning'.", QMessageBox.Icon.Warning)
+            self.visBesked("Tilknyt først et lag til rollen 'skilteplan' "
+                           "på fanebladet 'Opsætning'.", QMessageBox.Icon.Warning)
             return
 
         navn, start, slut = self.laesPlanFormular()
@@ -615,7 +615,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         lag.startEditing()
         if not lag.addFeature(feature):
             lag.rollBack()
-            self.visBesked("Skilteplanen kunne ikke tilfoejes.", QMessageBox.Icon.Critical)
+            self.visBesked("Skilteplanen kunne ikke tilføjes.", QMessageBox.Icon.Critical)
             return
 
         if not lag.commitChanges():
@@ -935,7 +935,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         """
         lag = self.skiltetyperLag()
         if lag is None:
-            self.visBesked("Tilknyt foerst et lag til rollen 'skiltetyper'.",
+            self.visBesked("Tilknyt først et lag til rollen 'skiltetyper'.",
                            QMessageBox.Icon.Warning)
             return 0
 
@@ -956,8 +956,8 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         svar = QMessageBox.question(
             self, "Fjern dubletter",
             "Fjern {} gentagne skilte?\n\n"
-            "Den foerste af hvert navn beholdes. Aendringer i beskrivelse "
-            "eller maal paa de fjernede raekker gaar tabt.".format(len(slettes)),
+            "Den første af hvert navn beholdes. Ændringer i beskrivelse "
+            "eller mål på de fjernede rækker går tabt.".format(len(slettes)),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if svar != QMessageBox.StandardButton.Yes:
             return 0
@@ -982,25 +982,25 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         """Manuel indlaesning med bekraeftelse og kvittering."""
         mappe = self.path_sign_graphics.filePath()
         if not mappe or not os.path.isdir(mappe):
-            self.visBesked("Vaelg foerst en mappe med skiltegrafik "
-                           "paa foerste faneblad.", QMessageBox.Icon.Warning)
+            self.visBesked("Vælg først en mappe med skiltegrafik "
+                           "på første faneblad.", QMessageBox.Icon.Warning)
             return
 
         if self.skiltetyperLag() is None:
-            self.visBesked("Tilknyt foerst et lag til rollen 'skiltetyper'.",
+            self.visBesked("Tilknyt først et lag til rollen 'skiltetyper'.",
                            QMessageBox.Icon.Warning)
             return
 
         nye = self.manglendeSkilte(mappe)
         if not nye:
-            self.visBesked("Ingen nye SVG-filer at indlaese - tabellen er "
+            self.visBesked("Ingen nye SVG-filer at indlæse - tabellen er "
                            "allerede opdateret.", QMessageBox.Icon.Information)
             return
 
         svar = QMessageBox.question(
-            self, "Indlaes skilte",
-            "Indlaes {} nye skilte fra\n{}?\n\n"
-            "Eksisterende skilte roeres ikke.".format(len(nye), mappe),
+            self, "Indlæs skilte",
+            "Indlæs {} nye skilte fra\n{}?\n\n"
+            "Eksisterende skilte røres ikke.".format(len(nye), mappe),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if svar != QMessageBox.StandardButton.Yes:
             return
@@ -1013,10 +1013,10 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
             return
 
         uden_metadata = [n[0] for n in nye if n[0] not in metadata]
-        besked = "{} skilte indlaest.".format(tilfoejet)
+        besked = "{} skilte indlæst.".format(tilfoejet)
         if uden_metadata:
-            besked += ("\n\nUden beskrivelse i det medfoelgende bibliotek "
-                       "(beskrivelse sat til filnavnet, niveau gaettet):\n{}".format(
+            besked += ("\n\nUden beskrivelse i det medfølgende bibliotek "
+                       "(beskrivelse sat til filnavnet, niveau gættet):\n{}".format(
                            ", ".join(uden_metadata)))
         self.visBesked(besked, QMessageBox.Icon.Information)
 
@@ -1079,7 +1079,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
                     }
         except Exception as e:
             QgsMessageLog.logMessage(
-                "Kunne ikke laese {}: {}".format(self.STANDARDBIBLIOTEK, e),
+                "Kunne ikke læse {}: {}".format(self.STANDARDBIBLIOTEK, e),
                 tag="skilteplan", level=Qgis.MessageLevel.Warning)
             return None
         return metadata
@@ -1140,14 +1140,14 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
 
             if dubletter:
                 QgsMessageLog.logMessage(
-                    "Dubletter i det medfoelgende skiltebibliotek: {} - "
+                    "Dubletter i det medfølgende skiltebibliotek: {} - "
                     "kun den sidste beskrivelse bruges".format(", ".join(dubletter)),
                     tag="skilteplan", level=Qgis.MessageLevel.Warning)
 
             return metadata
         except Exception as e:
             QgsMessageLog.logMessage(
-                "Kunne ikke laese skiltebiblioteket fra db.zip: {}".format(e),
+                "Kunne ikke læse skiltebiblioteket fra db.zip: {}".format(e),
                 tag="skilteplan", level=Qgis.MessageLevel.Warning)
             return {}
         finally:

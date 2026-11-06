@@ -288,7 +288,7 @@ def opretPostgis(forbindelsesnavn, skema="skilteplan", roller=None, overskriv=Fa
     """
     md = QgsProviderRegistry.instance().providerMetadata("postgres")
     if md is None:
-        raise IOError("PostgreSQL-provideren er ikke tilgaengelig i denne QGIS-installation")
+        raise IOError("PostgreSQL-provideren er ikke tilgængelig i denne QGIS-installation")
 
     forbindelse = md.findConnection(forbindelsesnavn)
     if forbindelse is None:
@@ -310,7 +310,7 @@ def opretPostgis(forbindelsesnavn, skema="skilteplan", roller=None, overskriv=Fa
                     nr, len(saetninger), saetning.split("\n")[0], e))
 
     QgsMessageLog.logMessage(
-        "PostGIS: {} saetninger udfoert i skemaet '{}' paa '{}'".format(
+        "PostGIS: {} sætninger udført i skemæt '{}' på '{}'".format(
             len(saetninger), skema, forbindelsesnavn),
         tag="skilteplan", level=Qgis.MessageLevel.Info)
     return skema
@@ -431,7 +431,7 @@ def validerLag(lag, rolle):
     # Geometri
     if harGeometri(rolle):
         if lag.geometryType() != Qgis.GeometryType.Point:
-            res.fejl.append("'{}' skal vaere et punktlag (er: {})".format(
+            res.fejl.append("'{}' skal være et punktlag (er: {})".format(
                 rolle, QgsWkbTypes.geometryDisplayString(lag.geometryType())))
     else:
         if lag.geometryType() != Qgis.GeometryType.Null:
@@ -456,8 +456,8 @@ def validerLag(lag, rolle):
         if fundet is None:
             if fdef.get("valgfri"):
                 res.advarsler.append(
-                    "Det valgfrie felt '{}' mangler i '{}'. Tilfoej det for at "
-                    "faa den tilhoerende funktion.".format(fdef["navn"], lag.name()))
+                    "Det valgfrie felt '{}' mangler i '{}'. Tilføj det for at "
+                    "få den tilhørende funktion.".format(fdef["navn"], lag.name()))
             else:
                 manglende.append(fdef["navn"])
             continue

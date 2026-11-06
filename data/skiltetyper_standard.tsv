@@ -16,7 +16,7 @@ A31	Glat vej	1	12	10	false
 A33	Løse sten	1	12	10	true
 A34	Stenskred	1	12	10	true
 A35	Farlig rabat	1	12	10	false
-A36.1	A36.1	1	8	12	true
+A36.1	Sænkning af vejbanen	1	8	12	true
 A36	Bump	1	12	10	false
 A37	Ujævn vej	1	12	10	false
 A38	Lunke	1	12	10	false
@@ -31,12 +31,11 @@ A43.3	Indsnævret vej i højre side	1	12	10	false
 A44	Tunnel	1	12	10	true
 A46.1	Stejl nedkørsel	1	12	10	true
 A46.2	Stejl stigning	1	12	10	true
-A71	A71	1	12	10	true
+A71	Letbane	1	12	10	true
 A72	Jernbaneoverkørsel uden bomme	1	12	10	false
 A73	Jernbaneoverkørsel med bomme	1	12	10	true
 A74.1	Krydsmærke for enkeltsporet jernbaneoverkørsel	1	12	8	true
 A74.2	Krydsmærke for flersporet jernbaneoverkørsel	1	10	12	true
-A75	A75	1	12	6	true
 A91	Oplukkelig bro	1	12	10	true
 A92	Havnekaj	1	12	10	true
 A95	Sidevind	1	12	10	true
@@ -103,11 +102,6 @@ D21	Cykelsti	1	12	12	true
 D22	Gangsti	1	12	12	true
 D55	Mindste hastighed 50km	1	12	12	true
 D56	Ophør af mindste hastighed 50km	1	12	12	true
-DK-E20	DK-E20	1	12	5	true
-DK-E39	DK-E39	1	12	5	true
-DK-E45	DK-E45	1	12	5	true
-DK-E47	DK-E47	1	12	5	true
-DK-E55	DK-E55	1	12	5	true
 E18.1	Blind vej med sti	1	12	12	false
 E18	Blind vej	1	12	12	false
 E19.1	Ensrettet venstre	1	12	3	false
@@ -115,123 +109,29 @@ E19	Ensrettet højre	1	12	3	false
 E24	Vejledning for synshandicappede	1	12	12	true
 E26.1	Fodgængerbro	1	12	12	true
 E26.2	Fodgængertunnel	1	12	12	true
-E55	E55	1	12	6	true
-E68.5	E68.5	1	9	12	true
-K30	K30	1	12	10	true
-M10	M10	1	12	12	true
-M101	M101	1	12	12	true
-M102	M102	1	12	12	true
-M103	M103	1	12	12	true
-M104	M104	1	12	12	true
-M105	M105	1	12	12	true
-M107	M107	1	12	12	true
-M109	M109	1	12	12	true
-M11	M11	1	12	12	true
-M111	M111	1	12	12	true
-M112	M112	1	12	12	true
-M113	M113	1	12	12	true
-M114	M114	1	12	12	true
-M115	M115	1	12	12	true
-M116	M116	1	12	12	true
-M117	M117	1	12	12	true
-M118	M118	1	12	12	true
-M119	M119	1	12	12	true
-M12	M12	1	12	12	true
-M120	M120	1	12	12	true
-M121	M121	1	12	12	true
-M123	M123	1	12	12	true
-M124	M124	1	12	12	true
-M125	M125	1	12	12	true
-M126	M126	1	12	12	true
-M127	M127	1	12	12	true
-M128	M128	1	12	12	true
-M129	M129	1	12	12	true
-M13.1	M13.1	1	12	12	true
-M13.2	M13.2	1	12	12	true
-M13.3	M13.3	1	12	12	true
-M13	M13	1	12	12	true
-M130	M130	1	12	12	true
-M131	M131	1	12	12	true
-M132	M132	1	12	12	true
-M133	M133	1	12	12	true
-M134	M134	1	12	12	true
-M138	M138	1	12	12	true
-M14	M14	1	12	12	true
-M140	M140	1	12	12	true
-M143	M143	1	12	12	true
-M144	M144	1	12	12	true
-M145	M145	1	12	12	true
-M146	M146	1	12	12	true
-M15	M15	1	12	12	true
-M16	M16	1	12	6	true
-M17	M17	1	12	12	true
-M18	M18	1	12	12	true
-M22	M22	1	12	12	true
-M23	M23	1	12	12	true
-M24.1	M24.1	1	12	12	true
-M24.2	M24.2	1	12	12	true
-M24	M24	1	12	12	true
-M30	M30	1	12	12	true
-M31.1	M31.1	1	12	12	true
-M31	M31	1	12	12	true
-M32	M32	1	12	12	true
-M33	M33	1	12	12	true
-M34.1	M34.1	1	12	12	true
-M34	M34	1	12	12	true
-M35.1	M35.1	1	12	12	true
-M35	M35	1	12	12	true
-M36	M36	1	12	12	true
-M37	M37	1	12	12	true
-M38	M38	1	12	12	true
-M41	M41	1	12	12	true
-M42	M42	1	12	12	true
-M43	M43	1	12	12	true
-M45	M45	1	12	12	true
-M46.1	M46.1	1	12	12	true
-M46	M46	1	12	12	true
-M47.1	M47.1	1	12	12	true
-M47	M47	1	12	12	true
-M51	M51	1	12	12	true
-M52.1	M52.1	1	12	12	true
-M52.2	M52.2	1	12	12	true
-M53	M53	1	12	12	true
-M54	M54	1	12	12	true
-M57	M57	1	12	12	true
-M61	M61	1	12	12	true
-M9	M9	1	12	12	true
-U1.1	500m	1	12	5	false
-U1.2	U1.2	1	12	5	true
-U2.1	200-800m	1	12	5	false
-U2.2	U2.2	1	12	5	true
-U3.1	1 time	1	12	5	false
-U3.2	Onsdag	1	12	5	true
-U3.3	8-17 / (8-14) / 9-12	1	12	9	true
-U3.4	U3.4	1	12	5	true
-U3.5	U3.5	1	12	5	true
-U3.6	U3.6	1	12	9	true
-U4.1	Lastbil	1	12	12	true
-U4.2	U4.2	1	12	12	true
-U5.1	Cykel undtaget	1	12	9	false
-U5.2	U5.2	1	12	9	true
-U6.1	Til venstre	1	12	12	false
-U6.3	Til højre	1	12	12	false
-U6.4	U6.4	1	12	12	true
-U7	Til højre cykel undtaget	1	11	12	false
+U1.1	500m	2	12	5	false
+U2.1	200-800m	2	12	5	false
+U3.1	1 time	2	12	5	false
+U3.2	Onsdag	2	12	5	true
+U3.3	8-17 / (8-14) / 9-12	2	12	9	true
+U4.1	Lastbil	2	12	12	true
+U5.1	Cykel undtaget	2	12	9	false
+U6.1	Til venstre	2	12	12	false
+U6.3	Til højre	2	12	12	false
+U7	Til højre cykel undtaget	2	11	12	false
 UA22.1	Skole	2	12	5	true
 UA31	Frostvejr	2	12	5	true
 UA41	40km	2	12	12	false
 UA43.1	Smal vej	2	12	5	false
-UA43	max bredde 3,5m	2	12	5	true
+UA43	Max bredde 3,5m	2	12	5	true
 UA72	Se efter tog	2	12	5	true
 UA73	Strømførende kabel 4,5m oppe	2	12	7	true
-UA99	UA99	2	12	8	true
 UB11.1	Stop 200m	2	12	10	true
 UB11.2	Cykler fra begge sider	2	12	9	false
 UB11.3	Letbane fra begge sider	2	12	9	true
 UC20.2	Ærindekørsel tilladt	2	12	6	false
 UC33	Parkering 1t	2	12	5	false
 UC56	Byzone	2	12	5	false
-UC57	UC57	2	7	12	true
 UC60.1	På begge sider af skiltet	2	6	10	false
 UC60.2	Fra skiltet	2	6	10	false
 UC60.3	Til skiltet	2	6	10	false
@@ -239,11 +139,3 @@ UC60.5	Standsning og parkering i rabat forbudt	2	12	6	false
 UC60.6	Parkering i rabat forbudt	2	12	6	false
 UC60.7	Parkering i rabat tilladt	2	12	7	false
 UC60.8	Parkering på fortov tilladt	2	12	7	false
-UC61	UC61	2	7	12	true
-UC62	UC62	2	7	12	true
-UD1	UD1	2	12	5	true
-UD21.1	UD21.1	2	12	5	true
-UD21.2	UD21.2	2	12	5	true
-UE33.1	UE33.1	2	7	12	true
-UE33.2	UE33.2	2	7	12	true
-UE33.3	UE33.3	2	7	12	true

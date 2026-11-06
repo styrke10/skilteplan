@@ -166,7 +166,7 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
                 if not signTable.commitChanges():
                     fejl = "\n".join(signTable.commitErrors())
                     signTable.rollBack()
-                    self.visFejl("Aendringen kunne ikke gemmes:\n{}".format(fejl))
+                    self.visFejl("Ændringen kunne ikke gemmes:\n{}".format(fejl))
                 
         return found
 
@@ -205,7 +205,7 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
         else:
             self.hw_ratio = 1.0
             QgsMessageLog.logMessage(
-                "SVG'en '{}' kunne ikke laeses (tom boundingRect)".format(path),
+                "SVG'en '{}' kunne ikke læses (tom boundingRect)".format(path),
                 tag="skilteplan", level=Qgis.MessageLevel.Warning)
 
     def setAddBtnState(self):
@@ -243,7 +243,7 @@ class skilteplanAddSignDialog(QtWidgets.QDialog, FORM_CLASS):
 
                 if not layer.addFeature(feature):
                     layer.rollBack()
-                    self.visFejl("Skiltet kunne ikke tilfoejes til tabellen 'skiltetyper'.")
+                    self.visFejl("Skiltet kunne ikke tilføjes til tabellen 'skiltetyper'.")
                 elif not layer.commitChanges():
                     fejl = "\n".join(layer.commitErrors())
                     layer.rollBack()
