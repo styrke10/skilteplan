@@ -12,15 +12,14 @@ Opsætning:
     getNearestAddress - den skal blot også have adgang til MAT-tjenesten.
 """
 
-from qgis.core import qgsfunction, QgsExpressionContextUtils, QgsMessageLog, Qgis
+from qgis.core import (qgsfunction, QgsExpressionContextUtils, QgsMessageLog, Qgis,
+                       QgsNetworkAccessManager)
+from qgis.PyQt.QtCore import QUrl, QByteArray
+from qgis.PyQt.QtNetwork import QNetworkRequest, QNetworkReply
 from datetime import datetime, timezone
-import urllib.request
 import urllib.parse
-import urllib.error
 import json
-import os
 import re
-import ssl
 
 
 # ---------------------------------------------------------------------------
@@ -80,18 +79,27 @@ def getApiKey():
 
 
 def runGraphql(query, variables):
-    # Laver GraphQL request med den angivne query og parametre
-    url = f"{matGraphqlUrl}?{urllib.parse.urlencode({'apiKey': getApiKey()})}"
-    body = json.dumps({'query': query, 'variables': variables}).encode('utf-8')
-    request = urllib.request.Request(url, data=body, method='POST',
-                                     headers={'Content-Type': 'application/json'})
-    try:
-        with urllib.request.urlopen(request, timeout=requestTimeout) as response:
-            result = json.loads(response.read().decode('utf-8'))
-    except urllib.error.HTTPError as e:
+    # Laver GraphQL request via QGIS' netværkslag (respekterer proxy, SSL- og
+    # autentificeringsindstillinger og vises i QGIS' netværkslogger)
+    url = QUrl(f"{matGraphqlUrl}?{urllib.parse.urlencode({'apiKey': getApiKey()})}")
+    if url.scheme() != 'https':
+        raise RuntimeError(f'Ugyldigt URL-skema: {url.scheme()}')
+
+    request = QNetworkRequest(url)
+    request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, 'application/json')
+    request.setTransferTimeout(requestTimeout * 1000)
+    body = QByteArray(json.dumps({'query': query, 'variables': variables}).encode('utf-8'))
+
+    # blockingPost er trådsikker og kan kaldes fra QGIS' baggrundstråde (fx rendering)
+    reply = QgsNetworkAccessManager.instance().blockingPost(request, body)
+    content = bytes(reply.content()).decode('utf-8', errors='replace')
+
+    if reply.error() != QNetworkReply.NetworkError.NoError:
         # GraphQL-fejl returneres ofte som HTTP 400 med forklaringen i body
-        errorBody = e.read().decode('utf-8', errors='replace')
-        raise RuntimeError(f'HTTP {e.code}: {errorBody}') from None
+        status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+        raise RuntimeError(f'HTTP {status}: {content or reply.errorString()}')
+
+    result = json.loads(content)
     if result.get('errors'):
         raise RuntimeError('; '.join(e.get('message', str(e)) for e in result['errors']))
     return result['data']
@@ -169,10 +177,6 @@ def getJordstykke(x, y, feature, parent):
     Koordinater skal angives i ETRS89 UTM Zone 32N (EPSG:25832).<br>
     Kræver den globale variabel <b>'dar_api_key'</b> med en Datafordeler API-nøgle.<br><br>
     """
-
-    # Samme SSL-håndtering som getNearestAddress (slår certifikatkontrol fra)
-    if (not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None)):
-        ssl._create_default_https_context = ssl._create_unverified_context
 
     if x is None or y is None:
         return None

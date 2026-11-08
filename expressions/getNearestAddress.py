@@ -1,26 +1,25 @@
 """
 Define new functions using @qgsfunction. feature and parent must always be the
 last args. Use args=-1 to pass a list of values as arguments
- 
+
 Erstatning for DAWA's /adgangsadresser/reverse (lukker 1. oktober 2026).
 Bruger Datafordelerens GraphQL-tjeneste for DAR (v3).
- 
+
 Opsætning:
     Opret en global QGIS-variabel 'dar_api_key' med din Datafordeler API-nøgle
     (Indstillinger -> Indstillinger... -> Variabler).
 """
- 
-from qgis.core import qgsfunction, QgsExpressionContextUtils, QgsMessageLog, Qgis
+
+from qgis.core import (qgsfunction, QgsExpressionContextUtils, QgsMessageLog, Qgis,
+                       QgsNetworkAccessManager)
+from qgis.PyQt.QtCore import QUrl, QByteArray
+from qgis.PyQt.QtNetwork import QNetworkRequest, QNetworkReply
 from datetime import datetime, timezone
-import urllib.request
 import urllib.parse
-import urllib.error
 import json
 import math
-import os
-import ssl
- 
- 
+
+
 # ---------------------------------------------------------------------------
 # Konfiguration
 # ---------------------------------------------------------------------------
@@ -32,11 +31,11 @@ pageSize = 1000                           # max tilladt af Datafordeleren
 maxPages = 5                              # max sider pr. søgeboks
 husnummerStatuses = ['2', '3']            # DAR livscyklus: 2 = foreløbig, 3 = gældende
 requestTimeout = 30                       # sekunder
- 
+
 logTag = 'getNearestAddress'
 addressCache = {}                         # (x, y) afrundet til cm -> adressetekst
- 
- 
+
+
 # ---------------------------------------------------------------------------
 # GraphQL-forespørgsler
 # ---------------------------------------------------------------------------
@@ -49,7 +48,7 @@ query ($t: DafDateTime!, $wkt: String!, $n: Int!, $after: String) {
   }
 }
 """
- 
+
 husnummerQuery = """
 query ($t: DafDateTime!, $ids: [String!], $statuses: [String!]) {
   DAR_Husnummer(first: 1000, virkningstid: $t, registreringstid: $t,
@@ -58,7 +57,7 @@ query ($t: DafDateTime!, $ids: [String!], $statuses: [String!]) {
   }
 }
 """
- 
+
 navngivenVejQuery = """
 query ($t: DafDateTime!, $id: String!) {
   DAR_NavngivenVej(first: 1, virkningstid: $t, registreringstid: $t,
@@ -67,7 +66,7 @@ query ($t: DafDateTime!, $id: String!) {
   }
 }
 """
- 
+
 postnummerQuery = """
 query ($t: DafDateTime!, $id: String!) {
   DAR_Postnummer(first: 1, virkningstid: $t, registreringstid: $t,
@@ -76,8 +75,8 @@ query ($t: DafDateTime!, $id: String!) {
   }
 }
 """
- 
- 
+
+
 # ---------------------------------------------------------------------------
 # Hjælpefunktioner
 # ---------------------------------------------------------------------------
@@ -86,37 +85,46 @@ def getApiKey():
     if not apiKey:
         raise RuntimeError(f"Global QGIS-variabel '{apiKeyVariable}' med Datafordeler API-nøgle mangler")
     return str(apiKey)
- 
- 
+
+
 def runGraphql(query, variables):
-    # Laver GraphQL request med den angivne query og parametre
-    url = f"{darGraphqlUrl}?{urllib.parse.urlencode({'apiKey': getApiKey()})}"
-    body = json.dumps({'query': query, 'variables': variables}).encode('utf-8')
-    request = urllib.request.Request(url, data=body, method='POST',
-                                     headers={'Content-Type': 'application/json'})
-    try:
-        with urllib.request.urlopen(request, timeout=requestTimeout) as response:
-            result = json.loads(response.read().decode('utf-8'))
-    except urllib.error.HTTPError as e:
+    # Laver GraphQL request via QGIS' netværkslag (respekterer proxy, SSL- og
+    # autentificeringsindstillinger og vises i QGIS' netværkslogger)
+    url = QUrl(f"{darGraphqlUrl}?{urllib.parse.urlencode({'apiKey': getApiKey()})}")
+    if url.scheme() != 'https':
+        raise RuntimeError(f'Ugyldigt URL-skema: {url.scheme()}')
+
+    request = QNetworkRequest(url)
+    request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, 'application/json')
+    request.setTransferTimeout(requestTimeout * 1000)
+    body = QByteArray(json.dumps({'query': query, 'variables': variables}).encode('utf-8'))
+
+    # blockingPost er trådsikker og kan kaldes fra QGIS' baggrundstråde (fx rendering)
+    reply = QgsNetworkAccessManager.instance().blockingPost(request, body)
+    content = bytes(reply.content()).decode('utf-8', errors='replace')
+
+    if reply.error() != QNetworkReply.NetworkError.NoError:
         # GraphQL-fejl returneres ofte som HTTP 400 med forklaringen i body
-        errorBody = e.read().decode('utf-8', errors='replace')
-        raise RuntimeError(f'HTTP {e.code}: {errorBody}') from None
+        status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
+        raise RuntimeError(f'HTTP {status}: {content or reply.errorString()}')
+
+    result = json.loads(content)
     if result.get('errors'):
         raise RuntimeError('; '.join(e.get('message', str(e)) for e in result['errors']))
     return result['data']
- 
- 
+
+
 def parsePointWkt(wkt):
     # 'POINT (x y)' eller 'POINT(x y)'
     inner = wkt[wkt.index('(') + 1:wkt.rindex(')')].split()
     return float(inner[0]), float(inner[1])
- 
- 
+
+
 def boxWkt(x, y, halfSize):
     x0, y0, x1, y1 = x - halfSize, y - halfSize, x + halfSize, y + halfSize
     return f'POLYGON (({x0} {y0}, {x1} {y0}, {x1} {y1}, {x0} {y1}, {x0} {y0}))'
- 
- 
+
+
 def fetchAdressepunkter(x, y, halfSize, timeStamp):
     """Returnerer liste af (afstand, adressepunktId) inden for boksen, sorteret efter afstand."""
     candidates = []
@@ -139,8 +147,8 @@ def fetchAdressepunkter(x, y, halfSize, timeStamp):
     # Sort candidates by distance
     candidates.sort()
     return candidates
- 
- 
+
+
 def findNearestHusnummer(candidates, timeStamp):
     """
     Adressepunkter omfatter både adgangspunkter og vejpunkter. Kun de adressepunkter,
@@ -161,32 +169,32 @@ def findNearestHusnummer(candidates, timeStamp):
             nearest = min(nodes, key=lambda n: distanceById.get(n['adgangspunkt'], math.inf))
             return distanceById[nearest['adgangspunkt']], nearest
     return None, None
- 
- 
+
+
 vejnavnCache = {}                         # navngivenVej-id -> vejnavn
 postnummerCache = {}                      # postnummer-id -> (postnr, navn)
- 
- 
+
+
 def getVejnavn(vejId, timeStamp):
     if vejId not in vejnavnCache:
         nodes = runGraphql(navngivenVejQuery, {'t': timeStamp, 'id': vejId})['DAR_NavngivenVej']['nodes'] or []
         vejnavnCache[vejId] = nodes[0]['vejnavn'] if nodes else ''
     return vejnavnCache[vejId]
- 
- 
+
+
 def getPostnummer(postnrId, timeStamp):
     if postnrId not in postnummerCache:
         nodes = runGraphql(postnummerQuery, {'t': timeStamp, 'id': postnrId})['DAR_Postnummer']['nodes'] or []
         postnummerCache[postnrId] = (nodes[0]['postnr'], nodes[0]['navn']) if nodes else ('', '')
     return postnummerCache[postnrId]
- 
- 
+
+
 def formatAddress(husnummer, timeStamp):
     vejnavn = getVejnavn(husnummer['navngivenVej'], timeStamp)
     postnr, postnrNavn = getPostnummer(husnummer['postnummer'], timeStamp)
     return f"{vejnavn} {husnummer['husnummertekst'] or ''}, {postnr} {postnrNavn}".strip()
- 
- 
+
+
 def lookupNearestAddress(x, y):
     # Generer stadig større rektangler, som der forespørges indenfor, indtil der findes kandidater
     timeStamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -204,8 +212,8 @@ def lookupNearestAddress(x, y):
             return formatAddress(husnummer, timeStamp)
         halfSize *= 2
     return None
- 
- 
+
+
 # ---------------------------------------------------------------------------
 # QGIS funktionen
 # ---------------------------------------------------------------------------
@@ -215,13 +223,13 @@ def getNearestAddress(x, y, feature, parent):
     Henter - via Datafordelerens GraphQL-tjeneste for DAR - den nærmeste (danske) adgangsadresse til det punkt, som er defineret af parametrene x og y.<br>
     <h3>Syntax:</h3>
     getNearestAddress( x, y )
- 
+
     <h3>Parametre:</h3>
     <ul>
     <li>x:  X koordinat</li>
     <li>y:  Y koordinat</li>
     </ul>
- 
+
     <h3>Eksempler:</h3>
     <ul>
       <li>getNearestAddress(507181.02, 6149080.57) -> 'Industrivej Vest 41, 6600 Vejen'</li>
@@ -230,24 +238,20 @@ def getNearestAddress(x, y, feature, parent):
     Koordinater skal angives i ETRS89 UTM Zone 32N (EPSG:25832).<br>
     Kræver den globale variabel <b>'dar_api_key'</b> med en Datafordeler API-nøgle.<br><br>
     """
- 
-    # Samme SSL-håndtering som det oprindelige script (slår certifikatkontrol fra)
-    if (not os.environ.get('PYTHONHTTPSVERIFY', '') and getattr(ssl, '_create_unverified_context', None)):
-        ssl._create_default_https_context = ssl._create_unverified_context
- 
+
     if x is None or y is None:
         return None
- 
+
     cacheKey = (round(float(x), 2), round(float(y), 2))
     if cacheKey in addressCache:
         return addressCache[cacheKey]
- 
+
     try:
         address = lookupNearestAddress(float(x), float(y))
     except Exception as e:
         parent.setEvalErrorString(f'getNearestAddress: {e}')
         QgsMessageLog.logMessage(str(e), logTag, Qgis.Critical)
         return None
- 
+
     addressCache[cacheKey] = address
     return address

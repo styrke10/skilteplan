@@ -32,7 +32,7 @@ from qgis.core import QgsProject, QgsSnappingConfig, QgsTolerance, QgsExpression
 import zipfile
 import shutil
 import re
-from xml.sax import saxutils
+import html
 from .expressions.getNearestAddress import getNearestAddress
 from .expressions.getJordstykke import getJordstykke
 from .expressions.getRoadCodeAndName import getRoadCodeAndName
@@ -635,7 +635,7 @@ class skilteplan:
         slags fil. Et moenster, der antager den ene, rammer stiltiende
         ingenting paa den anden.
         """
-        ny_vaerdi = saxutils.escape(str(vaerdi), {'"': "&quot;", "'": "&apos;"})
+        ny_vaerdi = html.escape(str(vaerdi))
 
         def erstat(m):
             el = m.group(0)

@@ -759,13 +759,11 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         """NULL og 0/False er aktiv; alt andet sandt er inaktiv."""
         if vaerdi is None:
             return False
-        try:
-            if hasattr(vaerdi, "isNull") and vaerdi.isNull():
-                return False
-        except Exception:
-            pass
+        isNull = getattr(vaerdi, "isNull", None)
+        if callable(isNull) and isNull():
+            return False
         return bool(vaerdi)
-
+    
     @staticmethod
     def inaktivVaerdi(lag, inaktiv):
         """
@@ -1027,15 +1025,13 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         """'true'/'1'/'ja' -> True; alt andet (inkl. tomt og NULL) -> False."""
         if vaerdi is None:
             return False
-        try:
-            if hasattr(vaerdi, "isNull") and vaerdi.isNull():
-                return False
-        except Exception:
-            pass
+        isNull = getattr(vaerdi, "isNull", None)
+        if callable(isNull) and isNull():
+            return False
         if isinstance(vaerdi, str):
             return vaerdi.strip().lower() in ("true", "t", "1", "ja", "yes")
         return bool(vaerdi)
-
+    
     def standardbibliotek(self):
         """
         Standardopsaetningen af skiltebiblioteket fra data/skiltetyper_standard.tsv.
