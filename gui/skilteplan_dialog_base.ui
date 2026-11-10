@@ -522,10 +522,34 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_5">
        <item>
-        <widget class="QListWidget" name="signList">
+        <widget class="QTreeWidget" name="signList">
          <property name="sortingEnabled">
           <bool>false</bool>
          </property>
+         <property name="rootIsDecorated">
+          <bool>false</bool>
+         </property>
+         <property name="uniformRowHeights">
+          <bool>true</bool>
+         </property>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <column>
+          <property name="text">
+           <string>Navn</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Beskrivelse</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Inaktiv</string>
+          </property>
+         </column>
         </widget>
        </item>
        <item>

@@ -1146,12 +1146,12 @@
     <default field="retning" expression="'right'" applyOnUpdate="0"/>
     <default field="offset" expression="5" applyOnUpdate="0"/>
     <default field="dobbeltsidet" expression="False" applyOnUpdate="0"/>
-    <default field="type_forside" expression="" applyOnUpdate="0"/>
-    <default field="utype_forside1" expression="" applyOnUpdate="0"/>
-    <default field="utype_forside2" expression="" applyOnUpdate="0"/>
-    <default field="type_bagside" expression="" applyOnUpdate="0"/>
-    <default field="utype_bagside1" expression="" applyOnUpdate="0"/>
-    <default field="utype_bagside2" expression="" applyOnUpdate="0"/>
+    <default field="type_forside" expression="''" applyOnUpdate="0"/>
+    <default field="utype_forside1" expression="''" applyOnUpdate="0"/>
+    <default field="utype_forside2" expression="''" applyOnUpdate="0"/>
+    <default field="type_bagside" expression="''" applyOnUpdate="0"/>
+    <default field="utype_bagside1" expression="''" applyOnUpdate="0"/>
+    <default field="utype_bagside2" expression="''" applyOnUpdate="0"/>
     <default field="manuelrotation" expression="False" applyOnUpdate="0"/>
     <default field="vejnavn" expression="array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),1)" applyOnUpdate="1"/>
     <default field="vejkode" expression="array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),0)" applyOnUpdate="1"/>
