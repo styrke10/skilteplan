@@ -1,17 +1,18 @@
 # This file contains metadata for your plugin.
 
-# This file should be included when you package your plugin.# Mandatory items:
+# This file should be included when you package your plugin.
+# Mandatory items:
 
 [general]
 name=Skilteplan
 qgisMinimumVersion=3.38
 qgisMaximumVersion=4.99
 description=Dette plugin gør QGIS velegnet til udarbejdelse af skilteplaner
-version=1.0.0
+version=1.1.0
 author=Morten Storm, Styrke 10 ApS
 email=morten@styrke10.dk
 
-about=Plugin'et 'Skilteplan' gør QGIS velegnet til udarbejdelse af skilteplaner, hvor skilte kan vises på deres rette placering og roteret i forhold til en vejmidte eller en vejkant.
+about=Plugin'et 'Skilteplan' gør QGIS velegnet til udarbejdelse af skilteplaner, hvor skilte kan vises på deres rette placering og roteret i forhold til en vejmidte eller en vejkant. Udviklet af Styrke10 i samarbejde med Klaus Agerskov (NST)
 
 tracker=https://github.com/styrke10/skilteplan/issues
 repository=https://github.com/styrke10/skilteplan
@@ -20,7 +21,19 @@ repository=https://github.com/styrke10/skilteplan
 # Recommended items:
 
 hasProcessingProvider=no
-changelog=1.0.0
+changelog=1.1.0
+    - Skiltebiblioteket vises som tabel med kolonnerne Navn, Beskrivelse og Inaktiv
+    - Skilte kan markeres som inaktive direkte i skiltebiblioteket (valgfrit
+      felt 'inaktiv' på skiltetyper; boolean eller 0/1-heltal, fx i Esri)
+    - Inaktive skilte vises nedtonet og skjules i attributformularens rullelister
+    - Inaktiv-status arves fra standardbiblioteket ved indlæsning af SVG-filer;
+      nye skilte oprettes som aktive
+    - Virtuelt felt 'kategori' på skiltetyper, udledt af skiltenavnets bogstavdel
+    - Bekræftelse når projektet er klargjort
+    - Beskeder skrevet med æ, ø og å
+    - Rettet: dialogen kunne ikke åbnes, fordi signList i .ui-filen stadig var
+      en QListWidget
+    1.0.0
     - Understoetter GeoPackage og PostGIS: plugin'et opretter tabellerne, og
       brugeren tilknytter selv lagene paa fanebladet 'Opsaetning'
     - Skemaet defineres ét sted (core/skilteplan_skema.py); skilteplan.sql genereres
@@ -55,4 +68,3 @@ deprecated=False
 
 # If the plugin can run on QGIS Server.
 server=False
-
