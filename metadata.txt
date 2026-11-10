@@ -7,12 +7,12 @@
 name=Skilteplan
 qgisMinimumVersion=3.38
 qgisMaximumVersion=4.99
-description=Dette plugin gør QGIS velegnet til udarbejdelse af skilteplaner
+description=Enkel, hurtig og reproducérbar udarbejdelse af skilteplaner i QGIS
 version=1.1.0
 author=Morten Storm, Styrke 10 ApS
 email=morten@styrke10.dk
 
-about=Plugin'et 'Skilteplan' gør QGIS velegnet til udarbejdelse af skilteplaner, hvor skilte kan vises på deres rette placering og roteret i forhold til en vejmidte eller en vejkant. Udviklet af Styrke10 i samarbejde med Klaus Agerskov (NST)
+about=Plugin'et 'Skilteplan' tilføjer funktioner og opsætninger til QGIS, som gør det nemt og enkelt at udarbejde skilteplaner, hvor skilte med korrekt grafik kan vises på deres rette placering og roteret i forhold til en vejmidte eller en vejkant. Udviklet af Styrke10 i samarbejde med Klaus Agerskov (NST)
 
 tracker=https://github.com/styrke10/skilteplan/issues
 repository=https://github.com/styrke10/skilteplan
@@ -34,15 +34,15 @@ changelog=1.1.0
     - Rettet: dialogen kunne ikke åbnes, fordi signList i .ui-filen stadig var
       en QListWidget
     1.0.0
-    - Understoetter GeoPackage og PostGIS: plugin'et opretter tabellerne, og
-      brugeren tilknytter selv lagene paa fanebladet 'Opsaetning'
+    - Understøtter GeoPackage og PostGIS: plugin'et opretter tabellerne, og
+      brugeren tilknytter selv lagene på fanebladet 'Opsætning'
     - Skemaet defineres ét sted (core/skilteplan_skema.py); skilteplan.sql genereres
-    - skilteplan.id omdoebt til planid; kontaktfelter og fri beskrivelse tilfoejet
+    - skilteplan.id omdøbt til planid; kontaktfelter og fri beskrivelse tilføjet
     - Manuelt og automatisk roterede skilte samlet i ét lag
     - Nyt faneblad til oprettelse og redigering af skilteplaner
     - Atlaslag og printlayout oprettes automatisk
     - Skiltebiblioteket fyldes fra skiltegrafikmappen
-    - Dansk-only: oversaettelseslaget fjernet
+    - Dansk-only: oversættelseslaget fjernet
     - Qt6-klar: qgis.PyQt overalt, fuldt kvalificerede enums, QMetaType i
       stedet for QVariant, Qgis.WkbType/GeometryType/LayerFilter
 
