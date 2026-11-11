@@ -12,7 +12,7 @@ version=1.1.0
 author=Morten Storm, Styrke 10 ApS
 email=morten@styrke10.dk
 
-about=Plugin'et 'Skilteplan' tilføjer funktioner og opsætninger til QGIS, som gør det nemt og enkelt at udarbejde skilteplaner, hvor skilte med korrekt grafik kan vises på deres rette placering og roteret i forhold til en vejmidte eller en vejkant. Udviklet af Styrke10 i samarbejde med Klaus Agerskov (NST)
+about=Plugin'et 'Skilteplan' tilføjer funktioner og opsætninger til QGIS, som gør det nemt og enkelt at udarbejde skilteplaner, hvor skilte med korrekt grafik kan vises på deres rette placering og roteret i forhold til en vejmidte eller en vejkant. Udviklet af Styrke10 i samarbejde med Klaus Agerskov (NST). English: Makes it quick and easy to prepare traffic sign plans in QGIS, with signs shown in place and rotated to follow a road centreline or road edge.
 
 tracker=https://github.com/styrke10/skilteplan/issues
 repository=https://github.com/styrke10/skilteplan
