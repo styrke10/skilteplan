@@ -48,6 +48,4 @@ Version 1.1 is a complete rewrite. The most important changes for you as a user:
 
 •       **The project can be shared.** The setup is saved as project variables, so a colleague can open the project and continue working without having to set anything up.
 
-A (simple) sign plan could, for example, look like this:
-
-<img width="624" height="500" alt="image" src="https://github.com/user-attachments/assets/8cb4d6f5-583d-407b-b4ec-550d7f931f2a" />
+A (simple) sign plan could, for example, look like the one shown above.
