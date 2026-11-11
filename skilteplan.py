@@ -1074,13 +1074,13 @@ class skilteplan:
             snapping_config = project.snappingConfig()
 
             snapping_config.setEnabled(True)
-            snapping_config.setMode(QgsSnappingConfig.AdvancedConfiguration) 
+            snapping_config.setMode(QgsSnappingConfig.SnappingMode.AdvancedConfiguration) 
 
             individual_settings = QgsSnappingConfig.IndividualLayerSettings(
                 enabled=True,
-                type=QgsSnappingConfig.VertexAndSegment,
+                type=QgsSnappingConfig.SnappingType.VertexAndSegment,
                 tolerance=10,
-                units=QgsTolerance.Pixels
+                units=QgsTolerance.UnitType.Pixels
             )
             snapping_config.setIndividualLayerSettings(snaplayer, individual_settings)
 

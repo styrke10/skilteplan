@@ -26,7 +26,7 @@ import re
 # Konfiguration
 # ---------------------------------------------------------------------------
 matGraphqlUrl = 'https://graphql.datafordeler.dk/MAT/v2'
-apiKeyVariable = 'dar_api_key'            # navn på global QGIS-variabel
+darGlobalVarName = 'dar_api_key'            # navn på global QGIS-variabel
 requestTimeout = 30                       # sekunder
 # MAT-status er tekst (fx 'Gældende', 'Foreløbig', 'Historisk'). Alt der matcher
 # dette mønster sorteres fra; øvrige (gældende/foreløbige) beholdes.
@@ -72,9 +72,9 @@ query ($t: DafDateTime!, $id: String!) {
 # Hjælpefunktioner
 # ---------------------------------------------------------------------------
 def getApiKey():
-    apiKey = QgsExpressionContextUtils.globalScope().variable(apiKeyVariable)
+    apiKey = QgsExpressionContextUtils.globalScope().variable(darGlobalVarName)
     if not apiKey:
-        raise RuntimeError(f"Global QGIS-variabel '{apiKeyVariable}' med Datafordeler API-nøgle mangler")
+        raise RuntimeError(f"Global QGIS-variabel '{darGlobalVarName}' med Datafordeler API-nøgle mangler")
     return str(apiKey)
 
 
@@ -146,7 +146,7 @@ def lookupJordstykke(x, y):
     #    de returneres så alle, adskilt af ' / '
     if len(jordstykker) > 1:
         QgsMessageLog.logMessage(f'Punktet ({x}, {y}) ligger på skel mellem {len(jordstykker)} jordstykker',
-                                 logTag, Qgis.Info)
+                                 logTag, Qgis.MessageLevel.Info)
     texts = sorted({formatJordstykke(j, timeStamp) for j in jordstykker})
     return ' / '.join(texts)
 
@@ -189,7 +189,7 @@ def getJordstykke(x, y, feature, parent):
         result = lookupJordstykke(float(x), float(y))
     except Exception as e:
         parent.setEvalErrorString(f'getJordstykke: {e}')
-        QgsMessageLog.logMessage(str(e), logTag, Qgis.Critical)
+        QgsMessageLog.logMessage(str(e), logTag, Qgis.MessageLevel.Critical)
         return None
 
     jordstykkeCache[cacheKey] = result

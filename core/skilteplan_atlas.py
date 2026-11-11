@@ -166,7 +166,7 @@ def _filtrerLabels(lag):
     try:
         vis = QgsPalLayerSettings.Property.Show      # QGIS 3.30+
     except AttributeError:
-        vis = QgsPalLayerSettings.Show
+        vis = QgsPalLayerSettings.Property.Show
     egenskaber = indstillinger.dataDefinedProperties()
     egenskaber.setProperty(vis, QgsProperty.fromExpression(ATLASFILTER))
     indstillinger.setDataDefinedProperties(egenskaber)

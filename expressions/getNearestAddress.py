@@ -24,7 +24,7 @@ import math
 # Konfiguration
 # ---------------------------------------------------------------------------
 darGraphqlUrl = 'https://graphql.datafordeler.dk/DAR/v3'
-apiKeyVariable = 'dar_api_key'            # navn på global QGIS-variabel
+darGlobalVarName = 'dar_api_key'            # navn på global QGIS-variabel
 startHalfSize = 100.0                     # halv sidelængde (m) på første søgeboks
 maxHalfSize = 6400.0                      # stop søgning herefter
 pageSize = 1000                           # max tilladt af Datafordeleren
@@ -81,9 +81,9 @@ query ($t: DafDateTime!, $id: String!) {
 # Hjælpefunktioner
 # ---------------------------------------------------------------------------
 def getApiKey():
-    apiKey = QgsExpressionContextUtils.globalScope().variable(apiKeyVariable)
+    apiKey = QgsExpressionContextUtils.globalScope().variable(darGlobalVarName)
     if not apiKey:
-        raise RuntimeError(f"Global QGIS-variabel '{apiKeyVariable}' med Datafordeler API-nøgle mangler")
+        raise RuntimeError(f"Global QGIS-variabel '{darGlobalVarName}' med Datafordeler API-nøgle mangler")
     return str(apiKey)
 
 
@@ -143,7 +143,7 @@ def fetchAdressepunkter(x, y, halfSize, timeStamp):
         after = connection['pageInfo']['endCursor']
     else:
         QgsMessageLog.logMessage(f'Mere end {maxPages * pageSize} adressepunkter i boksen - resultat kan være ufuldstændigt',
-                                 logTag, Qgis.Warning)
+                                 logTag, Qgis.MessageLevel.Warning)
     # Sort candidates by distance
     candidates.sort()
     return candidates
@@ -250,7 +250,7 @@ def getNearestAddress(x, y, feature, parent):
         address = lookupNearestAddress(float(x), float(y))
     except Exception as e:
         parent.setEvalErrorString(f'getNearestAddress: {e}')
-        QgsMessageLog.logMessage(str(e), logTag, Qgis.Critical)
+        QgsMessageLog.logMessage(str(e), logTag, Qgis.MessageLevel.Critical)
         return None
 
     addressCache[cacheKey] = address
