@@ -2,12 +2,11 @@
 
 Skilteplaner udarbejdes ofte i forbindelse med midlertidige trafikomlægninger i forbindelse med f.eks. vejarbejder, ledningsarbejder, kortvarige arrangementer o.lign.
 
-Plugin'et 'Skilteplan' gør QGIS velegnet til at udarbejde skilteplaner: Skilte placeres på kortet, roteres automatisk efter en vejmidte eller vejkant og forskydes fra den med et valgt
-offset. Skilte kan have én eller to sider, og hver side består af en hovedtavle og op til 2 undertavler.
+Plugin'et 'Skilteplan' gør QGIS velegnet til at udarbejde skilteplaner: Skilte placeres på kortet, roteres automatisk efter en vejmidte eller vejkant og forskydes fra den med et valgt offset. Skilte kan have én eller to sider, og hver side består af en hovedtavle og op til 2 undertavler.
 
 Hvert skilt hører til en navngiven skilteplan med periode og kontaktoplysninger, og planerne kan printes som atlas med én side pr. plan. 
 
-Version 1.0 er en gennemgribende omskrivning. De væsentligste ændringer for dig som bruger:
+Version 1.1 er en gennemgribende omskrivning. De væsentligste ændringer for dig som bruger:
 
 •       **Frit valg af datakilde.** Plugin'et opretter tabellerne i enten GeoPackage eller PostGIS. Du placerer dem selv, hvor de skal ligge, og henter lagene ind i projektet.
 

@@ -363,7 +363,7 @@ class skilteplan:
             svar = QMessageBox.question(
                 None, "Filen findes",
                 "Databasen findes allerede:\n{}\n\n"
-                "Overskriv den? Alle skilte og skilteplaner i filen gaar tabt.".format(sti),
+                "Overskriv den? Alle skilte og skilteplaner i filen går tabt.".format(sti),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             if svar != QMessageBox.StandardButton.Yes:
                 return

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>420</width>
-    <height>694</height>
+    <width>424</width>
+    <height>703</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -298,8 +298,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>370</width>
-            <height>540</height>
+            <width>374</width>
+            <height>566</height>
            </rect>
           </property>
           <layout class="QFormLayout" name="formOpsaetning">
@@ -523,8 +523,8 @@
       <layout class="QVBoxLayout" name="verticalLayout_5">
        <item>
         <widget class="QTreeWidget" name="signList">
-         <property name="sortingEnabled">
-          <bool>false</bool>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
          </property>
          <property name="rootIsDecorated">
           <bool>false</bool>
@@ -532,8 +532,8 @@
          <property name="uniformRowHeights">
           <bool>true</bool>
          </property>
-         <property name="alternatingRowColors">
-          <bool>true</bool>
+         <property name="sortingEnabled">
+          <bool>false</bool>
          </property>
          <column>
           <property name="text">
@@ -657,7 +657,7 @@
        <item>
         <widget class="QLabel" name="lblOpretIntro">
          <property name="text">
-          <string>Opretter tomme skilteplanstabeller. Dette goeres normalt kun én gang i organisationen - derefter arbejdes der videre i de samme lag, saa historikken bevares.</string>
+          <string>Opretter tomme skilteplanstabeller. Dette gøres normalt kun én gang i organisationen - derefter arbejdes der videre i de samme lag, så historikken bevares.</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>
