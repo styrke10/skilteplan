@@ -22,33 +22,39 @@
  ***************************************************************************/
 """
 
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtXml import QDomDocument
 from qgis.PyQt.QtWidgets import QAction, QFileDialog, QMessageBox
-from qgis.core import QgsProject, QgsSnappingConfig, QgsTolerance, QgsExpression, QgsSettings, QgsMessageLog, Qgis, QgsMapLayerProxyModel, QgsLayerDefinition, QgsExpressionContextUtils, QgsApplication, QgsVectorLayer, \
-                      QgsDataSourceUri, QgsVectorLayerJoinInfo, QgsDefaultValue
-import processing
-from .getNearestAddress import getNearestAddress
-from .getRoadCodeAndName import getRoadCodeAndName
-from .rotateRoadSign import rotateRoadSign
-
-# Initialize Qt resources from file resources.py
-from .resources import *
-# Import the code for the dialog
-from .skilteplan_dialog import skilteplanDialog
-import os.path
+from qgis.PyQt.QtCore import QMetaType
+from qgis.core import QgsProject, QgsSnappingConfig, QgsTolerance, QgsExpression, QgsSettings, QgsMessageLog, \
+                      Qgis, QgsExpressionContextUtils, QgsVectorLayer, QgsField, QgsVectorLayer, \
+                      QgsVectorLayerJoinInfo, QgsDefaultValue, QgsEditorWidgetSetup, QgsDataSourceUri
 import zipfile
+import shutil
+import re
+import html
+from .expressions.getNearestAddress import getNearestAddress
+from .expressions.getJordstykke import getJordstykke
+from .expressions.getRoadCodeAndName import getRoadCodeAndName
+from .expressions.rotateRoadSign import rotateRoadSign
 
+# Import the code for the dialog
+from .gui.skilteplan_dialog import skilteplanDialog
+from .core import skilteplan_skema as skema
+from .core import skilteplan_atlas as atlas
+
+SKEMA_GEOM = {r: skema.SKEMA[r]["geomkolonne"] for r in skema.ROLLER}
+import os.path
 
 class skilteplan:
     """QGIS Plugin Implementation."""
     
-    params = { "skilteplan_connection": None,
+    params = { "datakilde": None,
+               "skilteplan_connection": None,
                "skilteplanDB": None, 
                "skiltegrafik": None,
                "skilteafstand": None,
-               "qlr_sti": None,
-               "datfor_token": None,
+               "datfor_api_key": None,
                "snaplag": None,
                "vejkodefelt": None,
                "vejnavnefelt": None }
@@ -65,41 +71,15 @@ class skilteplan:
         self.iface = iface
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
-        # initialize locale
-        locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'skilteplan_{}.qm'.format(locale))
-
-        if os.path.exists(locale_path):
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-            QCoreApplication.installTranslator(self.translator)
+        self.data_dir = os.path.join(self.plugin_dir, 'data')
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&Skilteplan')
+        self.menu = u'&Skilteplan'
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
-        self.first_start = None
-
-    # noinspection PyMethodMayBeStatic
-    def tr(self, message):
-        """Get the translation for a string using Qt translation API.
-
-        We implement this ourselves since we do not inherit QObject.
-
-        :param message: String for translation.
-        :type message: str, QString
-
-        :returns: Translated version of message.
-        :rtype: QString
-        """
-        # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('skilteplan', message)
-
+        self.dlg = None
 
     def add_action(
         self,
@@ -114,8 +94,7 @@ class skilteplan:
         parent=None):
         """Add a toolbar icon to the toolbar.
 
-        :param icon_path: Path to the icon for this action. Can be a resource
-            path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
+        :param icon_path: Sti til ikonfilen paa disken.
         :type icon_path: str
 
         :param text: Text that should be shown in menu items for this action.
@@ -178,22 +157,19 @@ class skilteplan:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/skilteplan/skilteplan_icon.png'
+        icon_path = os.path.join(self.plugin_dir, 'skilteplan_icon.png')
         self.add_action(
             icon_path,
-            text=self.tr(u'Skilteplan'),
+            text=u'Skilteplan',
             callback=self.run,
             parent=self.iface.mainWindow())
-
-        # will be set False in run()
-        self.first_start = True
-
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         
         # Remove custom functions
         QgsExpression.unregisterFunction(getNearestAddress.name())
+        QgsExpression.unregisterFunction(getJordstykke.name())
         QgsExpression.unregisterFunction(getRoadCodeAndName.name())
         QgsExpression.unregisterFunction(rotateRoadSign.name())
         
@@ -202,192 +178,842 @@ class skilteplan:
         
         for action in self.actions:
             self.iface.removePluginMenu(
-                self.tr(u'&Skilteplan'),
+                self.menu,
                 action)
             self.iface.removeToolBarIcon(action)
-
 
     def run(self):
         """Run method that performs all the real work"""
 
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            #QgsMessageLog.logMessage('First start', tag="skilteplan", level=Qgis.Info )
+        # Dialogen bygges én gang. Betingelsen ser paa self.dlg og ikke paa et
+        # flag, der saettes foerst: fejler konstruktoeren, var flaget ellers
+        # allerede nulstillet, og alle senere klik gav en vildledende
+        # AttributeError i stedet for den egentlige fejl.
+        if self.dlg is None:
             # Check for a setting of the database
             self.readParams()
 
-            self.first_start = False
-            self.dlg = skilteplanDialog()
+            # QGIS-hovedvinduet som foraelder: saa bliver dialogen liggende
+            # over QGIS og kan ikke forsvinde bagved ved et klik i kortet
+            self.dlg = skilteplanDialog(self.iface.mainWindow())
 
-            # Setup button
+            # Setup buttons
             self.dlg.btnPrepareProject.clicked.connect(self.prepareProject)
+            self.dlg.btnCreateDB.clicked.connect(self.installDB)
+            self.dlg.btnUdpakGrafik.clicked.connect(self.udpakSkiltegrafik)
 
             # Set parameters
-            self.dlg.snaplayers.setFilters(QgsMapLayerProxyModel.LineLayer)
-            self.dlg.cmbConnections.setCurrentText(self.params["skilteplan_connection"])
-            #self.dlg.path_sign_db.setFilePath(self.params["skilteplanDB"])
-            self.dlg.path_sign_graphics.setFilePath(self.params["skiltegrafik"])
+            self.dlg.snaplayers.setFilters(Qgis.LayerFilter.LineLayer)
+
+            # Restore data source selection
+            if self.params["datakilde"] == "gpkg":
+                self.dlg.rbGpkg.setChecked(True)
+            elif self.params["datakilde"] == "postgis":
+                self.dlg.rbPostgis.setChecked(True)
+
+            if self.params["skilteplan_connection"]:
+                self.dlg.cmbConnections.setCurrentText(self.params["skilteplan_connection"])
+            if self.params["skilteplanDB"]:
+                self.dlg.path_sign_db.setFilePath(self.params["skilteplanDB"])
+            self.dlg.updateSourceMode()
+
+            # Genskab lagtilknytningen fra projektet
+            self.dlg.saetTilknytning(self.laesTilknytning())
+
+            grafikmappe = self.params["skiltegrafik"]
+            if not grafikmappe or not os.path.isdir(grafikmappe):
+                grafikmappe = self.standardSkiltemappe() or ""
+            self.dlg.path_sign_graphics.setFilePath(grafikmappe)
             self.dlg.signDistance.setValue(int(self.params["skilteafstand"]) if self.params["skilteafstand"] else 2)
-            self.dlg.path_to_qlr.setFilePath(self.params["qlr_sti"])
-            self.dlg.datfor_token.setText(self.params["datfor_token"])
+            self.dlg.datfor_api_key.setText(self.params["datfor_api_key"] if self.params["datfor_api_key"] else None)
             layerlist = QgsProject.instance().mapLayersByName(self.params["snaplag"])
             if layerlist:
                 self.dlg.snaplayers.setLayer(layerlist[0])
             self.dlg.vejkode.setField(self.params["vejkodefelt"])
             self.dlg.vejnavn.setField(self.params["vejnavnefelt"])
 
+        # Udfyld tomme rollevaelgere med lag, der hedder det forventede.
+        # Koeres ved hver aabning, saa lag hentet ind siden sidst fanges.
+        self.dlg.autoudfyldRoller()
+        self.dlg.validerTilknytning()
+
+        # Skilteplaner naar opsaetningen er klar, ellers Opsaetning
+        self.dlg.vaelgStartfaneblad()
+
         # show the dialog
         self.dlg.show()
 
         # Add sign items to the sign list
         self.dlg.fillSignList()
+        self.dlg.fillPlanList()
 
-        # Run the dialog event loop
-        result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
-            # Do something useful here
-            self.readParamsFromDlg()
-            self.storeParams()
-            self.storeParamsToProject()
-            self.setSnapEnvironment()
-
-
+        # Dialogen har ingen gem-knap laengere: 'Forbered projekt' gemmer
+        # opsaetningen baade i projektet og i egne indstillinger
+        self.dlg.exec()
 
     def readParamsFromDlg(self):
+        self.params["datakilde"] = self.dlg.datakilde()
         self.params["skilteplan_connection"] = self.dlg.cmbConnections.currentText()
-        #self.params["skilteplanDB"] = self.dlg.path_sign_db.filePath()
+        self.params["skilteplanDB"] = self.dlg.path_sign_db.filePath()
         self.params["skiltegrafik"] = self.dlg.path_sign_graphics.filePath()
         self.params["skilteafstand"] = self.dlg.signDistance.value()
-        self.params["qlr_sti"] = self.dlg.path_to_qlr.filePath()
-        self.params["datfor_token"] = self.dlg.datfor_token.text()
+        self.params["datfor_api_key"] = self.dlg.datfor_api_key.text()
         if not self.dlg.snaplayers.currentLayer() is None:
             self.params["snaplag"] = self.dlg.snaplayers.currentLayer().name()
-        if self.dlg.vejkode.currentField():
-            self.params["vejkodefelt"] = self.dlg.vejkode.currentField()
-        if self.dlg.vejnavn.currentField():
-            self.params["vejnavnefelt"] = self.dlg.vejnavn.currentField()
+        # Gemmes ogsaa naar de er tomme, saa et fravalg faktisk slaar igennem
+        self.params["vejkodefelt"] = self.dlg.vejkode.currentField()
+        self.params["vejnavnefelt"] = self.dlg.vejnavn.currentField()
     
 
+    # Parameternavn -> projektvariabel. Alt herudover er maskinspecifikt og
+    # gemmes kun i QgsSettings.
+    PROJEKTVARIABLER = {
+        "skilteafstand": "skilteafstand",
+        "skiltegrafik": "skiltegrafik",
+        "snaplag": "snaplag",
+        "vejkodefelt": "vejkodefelt",
+        "vejnavnefelt": "vejnavnfelt",
+    }
+
     def readParams(self):
+        """
+        Laeser opsaetningen - projektet foerst, egne indstillinger derefter.
+
+        Projektvariablerne foelger med projektfilen, saa en kollega kan aabne
+        et delt projekt og komme i gang uden at saette noget op. Tokenet til
+        Dataforsyningen er personligt og laeses kun fra egne indstillinger.
+        """
         settings = QgsSettings()
         prefix = 'plugins/skilteplan/'
+        scope = QgsExpressionContextUtils.projectScope(QgsProject.instance())
+
         for key in self.params:
-            self.params[key] = settings.value(prefix + key)
-        
-        #QgsMessageLog.logMessage('Params read: {}'.format(self.params), tag="skilteplan", level=Qgis.Info )
+            if key == 'datfor_api_key':
+                self.params[key] = QgsExpressionContextUtils.globalScope().variable('dar_api_key')
+            else:
+                vaerdi = None
+                variabel = self.PROJEKTVARIABLER.get(key)
+                if variabel and scope is not None and scope.hasVariable(variabel):
+                    vaerdi = scope.variable(variabel)
+                if vaerdi in (None, ""):
+                    vaerdi = settings.value(prefix + key)
+                self.params[key] = vaerdi
+
     
     
     def storeParams(self):
-        QgsMessageLog.logMessage("storeParams", tag="skilteplan", level=Qgis.Warning )
+        QgsMessageLog.logMessage("storeParams", tag="skilteplan", level=Qgis.MessageLevel.Warning )
         settings = QgsSettings()
         prefix = 'plugins/skilteplan/'
-        #QgsMessageLog.logMessage('Params stored:', tag="skilteplan", level=Qgis.Info )
+
         for key in self.params:
             if self.params[key]:
                 settings.setValue(prefix + key, self.params[key])
-                #QgsMessageLog.logMessage('\t{}: {}'.format(key,self.params[key]), tag="skilteplan", level=Qgis.Info )
+
         settings.setValue("Map/identifyAutoFeatureForm", True)
 
     def storeParamsToProject(self):
+        """
+        Skriver opsaetningen som projektvariabler, saa projektet kan deles.
+
+        Tokenet skrives ogsaa - symbologien og defaultvaerdierne laeser @token
+        - men det gemmes aldrig tilbage FRA projektet ved indlaesning, saa en
+        modtager bruger sit eget.
+        """
         project = QgsProject.instance()
-        #QgsMessageLog.logMessage("Setting project variables", tag="skilteplan", level=Qgis.Info )
-        QgsExpressionContextUtils.setProjectVariable(project, 'skilteafstand', self.params['skilteafstand'])
-        QgsExpressionContextUtils.setProjectVariable(project, 'skiltegrafik', self.params['skiltegrafik'])
-        QgsExpressionContextUtils.setProjectVariable(project, 'snaplag', self.params['snaplag'])
-        QgsExpressionContextUtils.setProjectVariable(project, 'token', self.params['datfor_token'])
-        QgsExpressionContextUtils.setProjectVariable(project, 'vejkodefelt', self.params['vejkodefelt'])
-        QgsExpressionContextUtils.setProjectVariable(project, 'vejnavnfelt', self.params['vejnavnefelt'])
+        for key, variabel in self.PROJEKTVARIABLER.items():
+            QgsExpressionContextUtils.setProjectVariable(
+                project, variabel, self.params[key])
+        
+        # API key til Datafordeleren sættes som global variabel (knyttet til den specifikke installation)
+        # dels for at forhindre kopiering ved deling af projekt, og dels fordi den anvendes generelt også af custom functions.
+        QgsExpressionContextUtils.setGlobalVariable('dar_api_key', self.params['datfor_api_key'])
     
     def installDB(self):
-        """ Installs a GeoPackage with (empty) layers and a sign folder"""
-        
-        msgBox = QMessageBox()
-        msgBox.setIcon(QMessageBox.Icon.Information)
-        msgBox.setWindowTitle("Information")
-        msgBox.setText("Skilteplansdatabase oprettes!")
-        msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
-        retval = msgBox.exec()
+        """
+        Opretter tomme skilteplanstabeller i den valgte datakilde.
 
-        qfd = QFileDialog()
-        folder = qfd.getExistingDirectory(None, 'Vælg mappe til skilteplansdatabase')
-        if len(folder) == 0:
-            QgsMessageLog.logMessage("Folder NOT chosen!".format(folder), tag="skilteplan", level=Qgis.Warning )
+        Skemaet kommer fra skilteplan_skema, saa GeoPackage og PostGIS faar
+        praecis de samme kolonner. Brugeren placerer selv resultatet der,
+        hvor det skal ligge, og henter lagene ind i projektet.
+        """
+        if self.dlg.datakilde() == "gpkg":
+            self.opretGpkg()
         else:
-            QgsMessageLog.logMessage("Folder '{}' chosen!".format(folder), tag="skilteplan", level=Qgis.Info )
-            
-            # Unzip db.zip to folder chosen, if no previous database exists
-            if not os.path.isfile(folder + r'\skilteplan.gpkg'):
-                QgsMessageLog.logMessage("New database created!", tag="skilteplan", level=Qgis.Info )
-                with zipfile.ZipFile(self.plugin_dir + r'\db.zip', 'r') as zip_ref:
-                    zip_ref.extractall(folder)
-            else:
-                QgsMessageLog.logMessage("Database already exists!", tag="skilteplan", level=Qgis.Info )
-            
-            self.params["skilteplanDB"] = folder + r'\skilteplan.gpkg'
-            
-            
-    def prepareProject(self):
-        #QgsMessageLog.logMessage("Preparing project!", tag="skilteplan", level=Qgis.Info )
-        self.readParamsFromDlg()
-        
-        # Set project variables
-        self.storeParamsToProject()
+            self.opretPostgis()
 
-        # Create layer group
+    def opretGpkg(self):
+        """Opretter en GeoPackage med de tre tabeller."""
+        # Er der allerede angivet en sti i feltet, bruges den som maal -
+        # ellers spoerges der om en placering
+        sti = self.dlg.path_sign_db.filePath().strip()
+        if not sti:
+            sti, _ = QFileDialog().getSaveFileName(
+                None, "Gem skilteplansdatabase som", "skilteplan.gpkg",
+                "GeoPackage (*.gpkg)")
+            if not sti:
+                return
+
+        if not sti.lower().endswith(".gpkg"):
+            sti += ".gpkg"
+
+        if os.path.isfile(sti):
+            svar = QMessageBox.question(
+                None, "Filen findes",
+                "Databasen findes allerede:\n{}\n\n"
+                "Overskriv den? Alle skilte og skilteplaner i filen går tabt.".format(sti),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if svar != QMessageBox.StandardButton.Yes:
+                return
+            overskriv = True
+        else:
+            overskriv = False
+
+        try:
+            skema.opretGeopackage(sti, overskriv=overskriv)
+        except Exception as e:
+            self.visFejl("GeoPackage kunne ikke oprettes:\n{}".format(e))
+            return
+
+        self.params["skilteplanDB"] = sti
+        self.dlg.rbGpkg.setChecked(True)
+        self.dlg.path_sign_db.setFilePath(sti)
+
+        if self.dlg.chkIndlaesLag.isChecked():
+            if self.indlaesOprettedeLag("gpkg", sti=sti):
+                QMessageBox.information(
+                    None, "Oprettet",
+                    "Skilteplansdatabasen er oprettet og lagene er indlæst "
+                    "og tilknyttet:\n{}".format(sti))
+                return
+
+        QMessageBox.information(
+            None, "Oprettet",
+            "Skilteplansdatabasen er oprettet:\n{}\n\n"
+            "Hent lagene ind i projektet og tilknyt dem på foerste "
+            "faneblad.".format(sti))
+
+    def opretPostgis(self):
+        """Opretter de tre tabeller i den valgte PostGIS-forbindelse."""
+        forbindelse = self.dlg.cmbConnections.currentText()
+        if not forbindelse:
+            self.visFejl("Vælg først en PostGIS-forbindelse.")
+            return
+
+        svar = QMessageBox.question(
+            None, "Opret tabeller",
+            "Opret skilteplanstabellerne i skemaet 'skilteplan' på "
+            "forbindelsen '{}'?\n\n"
+            "Eksisterende tabeller med samme navn røres ikke.".format(forbindelse),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if svar != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            skema.opretPostgis(forbindelse, overskriv=False)
+        except Exception as e:
+            self.visFejl("Tabellerne kunne ikke oprettes:\n{}".format(e))
+            return
+
+        if self.dlg.chkIndlaesLag.isChecked():
+            if self.indlaesOprettedeLag("postgis", forbindelse=forbindelse):
+                QMessageBox.information(
+                    None, "Oprettet",
+                    "Tabellerne er oprettet i skemaet 'skilteplan' og lagene "
+                    "er indlæst og tilknyttet.")
+                return
+
+        QMessageBox.information(
+            None, "Oprettet",
+            "Tabellerne er oprettet i skemaet 'skilteplan'.\n\n"
+            "Hent lagene ind i projektet og tilknyt dem på første faneblad.")
+
+    def standardSkiltemappe(self):
+        """
+        Den medfoelgende skiltegrafik i plugin-mappen.
+
+        Pakkes ud af db.zip ved foerste brug, saa biblioteket virker uden at
+        brugeren skal udpakke noget. Bemaerk at plugin-mappen overskrives ved
+        opdatering af plugin'et - egne skilte boer derfor ligge i en mappe
+        udenfor, gerne paa et faelles drev.
+        """
+        mappe = os.path.join(self.data_dir, "dk_skilte")
+
+        if os.path.isdir(mappe) and any(
+                f.lower().endswith(".svg") for f in os.listdir(mappe)):
+            return mappe
+
+        zip_sti = os.path.join(self.data_dir, "db.zip")
+        if not os.path.isfile(zip_sti):
+            return mappe if os.path.isdir(mappe) else None
+
+        try:
+            os.makedirs(mappe, exist_ok=True)
+            antal = self._udpakSvg(zip_sti, mappe)
+            QgsMessageLog.logMessage(
+                "{} skilte udpakket til plugin-mappen".format(antal),
+                tag="skilteplan", level=Qgis.MessageLevel.Info)
+        except Exception as e:
+            QgsMessageLog.logMessage(
+                "Kunne ikke udpakke standardskilte: {}".format(e),
+                tag="skilteplan", level=Qgis.MessageLevel.Warning)
+            return None
+
+        return mappe
+
+    @staticmethod
+    def _udpakSvg(zip_sti, maalmappe):
+        """Udpakker alle .svg fladt til maalmappen. Overskriver ikke."""
+        udpakket = 0
+        with zipfile.ZipFile(zip_sti, "r") as arkiv:
+            for navn in arkiv.namelist():
+                if not navn.lower().endswith(".svg"):
+                    continue
+                filnavn = os.path.basename(navn)
+                if not filnavn:
+                    continue
+                maal = os.path.join(maalmappe, filnavn)
+                if os.path.exists(maal):
+                    continue
+                with arkiv.open(navn) as kilde, open(maal, "wb") as ud:
+                    shutil.copyfileobj(kilde, ud)
+                udpakket += 1
+        return udpakket
+
+    def indlaesOprettedeLag(self, kilde, sti=None, forbindelse=None):
+        """
+        Indlaeser de netop oprettede tabeller i projektet og tilknytter dem.
+
+        Plugin'et byggede selv datakilden, saa her kender det stien - i alle
+        andre tilfaelde kommer lagene fra brugerens egen tilknytning.
+        """
         project = QgsProject.instance()
-        skp_group = project.layerTreeRoot().addGroup('skilteplan')
-        
-        # Load tables
-        uri = QgsDataSourceUri(self.dlg.connectiondict[self.params['skilteplan_connection']])
-        uri.setDataSource("skilteplan", "skiltetyper", None)
-        typelayer = QgsVectorLayer(uri.uri(False), "skiltetyper", "postgres")
-        project.addMapLayer(typelayer, False)
-        uri.setDataSource("skilteplan", "skilteplan", None)
-        planlayer = QgsVectorLayer(uri.uri(False), "skilteplan", "postgres")
-        project.addMapLayer(planlayer, False)
-        
-        # Load skilte layer
-        uri.setDataSource("skilteplan", "skilte", "geom", 'NOT "manuelrotation"')
-        skiltelayer = QgsVectorLayer(uri.uri(False), "skilte", "postgres")
-        qml_path = QgsApplication.qgisSettingsDirPath() + 'python\\plugins\\skilteplan\\skilte.qml'
-        skiltelayer.loadNamedStyle(qml_path)
+        indlaest = {}
+
+        for rolle in skema.ROLLER:
+            geom = SKEMA_GEOM.get(rolle)
+            if kilde == "gpkg":
+                lag = QgsVectorLayer(
+                    "{}|layername={}".format(sti, rolle), rolle, "ogr")
+            else:
+                uri = QgsDataSourceUri(self.dlg.connectiondict[forbindelse])
+                uri.setDataSource("skilteplan", rolle, geom or "", "")
+                lag = QgsVectorLayer(uri.uri(False), rolle, "postgres")
+
+            if not lag.isValid():
+                self.visFejl("Laget '{}' kunne ikke indlæses efter oprettelsen.".format(rolle))
+                return {}
+            project.addMapLayer(lag)
+            indlaest[rolle] = lag
+
+        # Tilknyt dem med det samme
+        self.dlg.saetTilknytning({r: l.id() for r, l in indlaest.items()})
+        self.dlg.validerTilknytning()
+        self.dlg.fillSignList()
+        self.dlg.fillPlanList()
+        return indlaest
+
+    def udpakSkiltegrafik(self):
+        """
+        Udpakker de medfoelgende skilte-SVG'er til en mappe, brugeren vaelger.
+
+        Filerne ligger i db.zip. Arkivets interne mappestruktur ignoreres -
+        alle .svg-filer lander fladt i maalmappen, fordi plugin'et andre
+        steder forventer '<skiltegrafik>/<skiltenavn>.svg'.
+        """
+        zip_sti = os.path.join(self.data_dir, "db.zip")
+        if not os.path.isfile(zip_sti):
+            self.visFejl("Filen db.zip blev ikke fundet:\n{}".format(zip_sti))
+            return
+
+        mappe = QFileDialog().getExistingDirectory(
+            None, "Vælg mappe til skiltegrafik")
+        if not mappe:
+            return
+
+        udpakket, sprunget_over = 0, 0
+        try:
+            with zipfile.ZipFile(zip_sti, "r") as arkiv:
+                svg_filer = [n for n in arkiv.namelist()
+                             if n.lower().endswith(".svg")]
+
+                if not svg_filer:
+                    self.visFejl(
+                        "db.zip indeholder ingen SVG-filer.\n\n"
+                        "Indhold: {}".format(", ".join(arkiv.namelist()[:10])))
+                    return
+
+                for navn in svg_filer:
+                    filnavn = os.path.basename(navn)
+                    if not filnavn:
+                        continue
+                    maal = os.path.join(mappe, filnavn)
+                    if os.path.exists(maal):
+                        sprunget_over += 1
+                        continue
+                    with arkiv.open(navn) as kilde, open(maal, "wb") as ud:
+                        shutil.copyfileobj(kilde, ud)
+                    udpakket += 1
+        except Exception as e:
+            self.visFejl("Skiltegrafikken kunne ikke udpakkes:\n{}".format(e))
+            return
+
+        self.params["skiltegrafik"] = mappe
+        self.dlg.path_sign_graphics.setFilePath(mappe)
+
+        besked = "{} skilte udpakket til\n{}".format(udpakket, mappe)
+        if sprunget_over:
+            besked += "\n\n{} filer fandtes i forvejen og blev ikke overskrevet.".format(
+                sprunget_over)
+        besked += ("\n\nBrug 'Indlaes fra mappe...' i skiltebiblioteket for at "
+                   "oprette posterne i skiltetyper-tabellen.")
+        QMessageBox.information(None, "Skiltegrafik", besked)
+
+    def visFejl(self, tekst):
+        """Viser en fejlbesked og skriver den til QGIS-loggen."""
+        QgsMessageLog.logMessage(tekst, tag="skilteplan", level=Qgis.MessageLevel.Critical)
+        QMessageBox.critical(None, "Fejl", tekst)
+
+    # Felter i skilte.qml med en ValueRelation: rolle, noeglekolonne og
+    # visningskolonne i det refererede lag. Saettes eksplicit herfra frem for
+    # at stole paa stilfilens egne vaerdier.
+    VALUERELATION_FELTER = {
+        "planid":         (skema.ROLLE_SKILTEPLAN, "planid", "navn"),
+        "type_forside":   (skema.ROLLE_SKILTETYPER, "skiltenavn", "skiltebeskrivelse"),
+        "utype_forside1": (skema.ROLLE_SKILTETYPER, "skiltenavn", "skiltebeskrivelse"),
+        "utype_forside2": (skema.ROLLE_SKILTETYPER, "skiltenavn", "skiltebeskrivelse"),
+        "type_bagside":   (skema.ROLLE_SKILTETYPER, "skiltenavn", "skiltebeskrivelse"),
+        "utype_bagside1": (skema.ROLLE_SKILTETYPER, "skiltenavn", "skiltebeskrivelse"),
+        "utype_bagside2": (skema.ROLLE_SKILTETYPER, "skiltenavn", "skiltebeskrivelse"),
+    }
+
+    def indlaesStil(self, skiltelayer, typelayer, planlayer):
+        """
+        Indlaeser skilte.qml med lagreferencerne rettet FOER indlaesning.
+
+        skilte.qml indeholder de lag-id'er og datakilder, den blev gemt med.
+        Retter man dem foerst bagefter, naar QGIS at oploese referencerne under
+        indlaesningen og advarer om en manglende formularafhaengighed. Derfor
+        rettes XML'en, inden den gives til laget.
+        """
+        sti = os.path.join(self.data_dir, "skilte.qml")
+        try:
+            with open(sti, encoding="utf-8") as f:
+                qml = f.read()
+            qml = self.retQmlLagreferencer(qml, typelayer, planlayer)
+
+            doc = QDomDocument()
+            svar = doc.setContent(qml)
+            if not (svar[0] if isinstance(svar, tuple) else svar):
+                raise ValueError("stilfilen kunne ikke fortolkes som XML")
+
+            svar = skiltelayer.importNamedStyle(doc)
+            ok = svar[0] if isinstance(svar, tuple) else svar
+            if not ok:
+                besked = svar[1] if isinstance(svar, tuple) and len(svar) > 1 else ""
+                raise ValueError(besked or "ukendt fejl")
+        except Exception as e:
+            # Falder tilbage paa den almindelige indlaesning - saa kommer
+            # advarslen om formularafhaengighed, men stilen bliver sat
+            QgsMessageLog.logMessage(
+                "Kunne ikke forudrette skilte.qml ({}) - indlæser direkte".format(e),
+                tag="skilteplan", level=Qgis.MessageLevel.Warning)
+            skiltelayer.loadNamedStyle(sti)
+
+        # Sikkerhedsnet: saetter referencerne paa det indlaeste lag
+        self.retValueRelationLag(skiltelayer, typelayer, planlayer)
+
+    @staticmethod
+    def _saetOption(blok, navn, vaerdi):
+        """
+        Saetter value paa <Option name="navn" .../> uanset attributraekkefoelge.
+
+        QGIS skriver attributterne i forskellig raekkefoelge afhaengigt af
+        version - baade name-foer-value og value-foer-name forekommer i samme
+        slags fil. Et moenster, der antager den ene, rammer stiltiende
+        ingenting paa den anden.
+        """
+        ny_vaerdi = html.escape(str(vaerdi))
+
+        def erstat(m):
+            el = m.group(0)
+            if re.search(r'\bvalue="', el):
+                return re.sub(r'\bvalue="[^"]*"',
+                              lambda _: 'value="{}"'.format(ny_vaerdi),
+                              el, count=1)
+            return el[:-2].rstrip() + ' value="{}"/>'.format(ny_vaerdi)
+
+        return re.sub(r'<Option\b[^>]*\bname="{}"[^>]*/>'.format(navn), erstat, blok)
+
+    def retQmlLagreferencer(self, qml, typelayer, planlayer):
+        """Peger stilfilens lagreferencer og opslag paa de tilknyttede lag."""
+        lagForRolle = {
+            skema.ROLLE_SKILTETYPER: typelayer,
+            skema.ROLLE_SKILTEPLAN: planlayer,
+        }
+
+        def erstat_felt(m):
+            blok = m.group(0)
+            opsaetning = self.VALUERELATION_FELTER.get(m.group(1))
+            if opsaetning is None or "ValueRelation" not in blok:
+                return blok
+
+            rolle, noegle, visning = opsaetning
+            maallag = lagForRolle[rolle]
+            for navn, vaerdi in (("Layer", maallag.id()),
+                                 ("LayerName", maallag.name()),
+                                 ("LayerSource", maallag.publicSource()),
+                                 ("LayerProviderName", maallag.providerType()),
+                                 ("Key", noegle),
+                                 ("Value", visning)):
+                blok = self._saetOption(blok, navn, vaerdi)
+            return blok
+
+        # Negativt lookbehind udelader selvlukkende <field .../>-elementer
+        qml = re.sub(r'<field\b[^>]*\bname="([^"]+)"[^>]*(?<!/)>.*?</field>',
+                     erstat_felt, qml, flags=re.S)
+
+        nyt_id = typelayer.id()
+
+        # Foerste argument er enten lagnavnet 'skiltetyper' eller et lag-id,
+        # der begynder med lagnavnet - sidstnaevnte hvis stilen er blevet gemt
+        # tilbage i filen fra et projekt. Begge dele rammes her.
+        qml, antal = re.subn(
+            r"(get_feature\(\s*)'[Ss]kiltetyper[^']*'",
+            lambda m: "{}'{}'".format(m.group(1), nyt_id),
+            qml)
+
+        if antal:
+            QgsMessageLog.logMessage(
+                "{} opslag i skiltetyper omskrevet til lag-id".format(antal),
+                tag="skilteplan", level=Qgis.MessageLevel.Info)
+            return qml
+
+        # Stilen er gemt med et lag, der hed noget helt andet. Alle
+        # get_feature-opslag i skilte.qml peger paa skiltetyper, saa foerste
+        # argument kan saettes uanset hvad der stod.
+        qml, antal = re.subn(
+            r"(get_feature\(\s*)'[^']*'",
+            lambda m: "{}'{}'".format(m.group(1), nyt_id),
+            qml)
+
+        if antal:
+            QgsMessageLog.logMessage(
+                "skilte.qml refererede et ukendt lagnavn - {} opslag sat til "
+                "'{}'. Stilfilen er sandsynligvis gemt tilbage fra et projekt "
+                "og bør gendannes fra kildeudgaven.".format(antal, nyt_id),
+                tag="skilteplan", level=Qgis.MessageLevel.Warning)
+        else:
+            QgsMessageLog.logMessage(
+                "Ingen get_feature-opslag fundet i skilte.qml - undertavler "
+                "bliver ikke placeret korrekt",
+                tag="skilteplan", level=Qgis.MessageLevel.Critical)
+
+        return qml
+
+    # Led i ValueRelation-filteret, der skjuler inaktive skilte. coalesce goer
+    # NULL til aktiv, og 'not' virker baade paa boolean og paa et 0/1-heltal.
+    INAKTIV_FILTER = 'not coalesce("inaktiv", false)'
+
+    @classmethod
+    def skiltetypeFilter(cls, eksisterende, harInaktiv):
+        """
+        Filterudtrykket for en skiltetype-rulleliste.
+
+        Bevarer det eksisterende filter (niveau = 1 / niveau = 2) og tilfoejer
+        INAKTIV_FILTER, hvis skiltetyper har feltet. Et tidligere tilfoejet
+        led fjernes foerst, saa funktionen kan koeres flere gange.
+        """
+        filt = str(eksisterende or "")
+        filt = filt.replace(" AND " + cls.INAKTIV_FILTER, "")
+        filt = filt.replace(cls.INAKTIV_FILTER, "").strip()
+        if not harInaktiv:
+            return filt
+        return "{} AND {}".format(filt, cls.INAKTIV_FILTER) if filt else cls.INAKTIV_FILTER
+
+    def retValueRelationLag(self, skiltelayer, typelayer, planlayer):
+        """
+        Saetter lag, noegle- og visningskolonne paa ValueRelation-felterne.
+
+        Koeres efter indlaesning af stilen som sikkerhedsnet. Kontrollerer
+        samtidig at de refererede kolonner findes - mangler de, bliver
+        rullelisten tom, og QGIS' egen besked siger ikke hvilket lag det er.
+        """
+        lagForRolle = {
+            skema.ROLLE_SKILTETYPER: typelayer,
+            skema.ROLLE_SKILTEPLAN: planlayer,
+        }
+
+        rettet = 0
+        mangler = []
+        for feltnavn, (rolle, noegle, visning) in self.VALUERELATION_FELTER.items():
+            idx = skiltelayer.fields().indexOf(feltnavn)
+            if idx < 0:
+                continue
+
+            opsaetning = skiltelayer.editorWidgetSetup(idx)
+            if opsaetning.type() != "ValueRelation":
+                continue
+
+            maallag = lagForRolle[rolle]
+            for kolonne in (noegle, visning):
+                if maallag.fields().indexOf(kolonne) < 0:
+                    besked = "{} mangler kolonnen '{}'".format(maallag.name(), kolonne)
+                    if besked not in mangler:
+                        mangler.append(besked)
+
+            config = dict(opsaetning.config())
+            config["Layer"] = maallag.id()
+            config["LayerName"] = maallag.name()
+            config["LayerSource"] = maallag.publicSource()
+            config["LayerProviderName"] = maallag.providerType()
+            config["Key"] = noegle
+            config["Value"] = visning
+
+            # Uden feltet ville filteret fejle og give en tom liste, saa det
+            # tilfoejes kun, naar skiltetyper faktisk har kolonnen
+            if rolle == skema.ROLLE_SKILTETYPER:
+                config["FilterExpression"] = self.skiltetypeFilter(
+                    config.get("FilterExpression"),
+                    maallag.fields().indexOf("inaktiv") >= 0)
+
+            skiltelayer.setEditorWidgetSetup(
+                idx, QgsEditorWidgetSetup("ValueRelation", config))
+            rettet += 1
+
+        QgsMessageLog.logMessage(
+            "ValueRelation sat på {} felter".format(rettet),
+            tag="skilteplan", level=Qgis.MessageLevel.Info)
+
+        if mangler:
+            self.visFejl(
+                "Rullelisterne i attributformularen vil være tomme:\n\n- {}\n\n"
+                "Laget er sandsynligvis oprettet med en ældre udgave af "
+                "plugin'et. Kør migration_til_1-0.sql, eller opret en ny "
+                "database på fanebladet 'Opret datakilde'.".format(
+                    "\n- ".join(mangler)))
+
+        return rettet
+
+    def gemTilknytning(self):
+        """
+        Gemmer lagtilknytningen i PROJEKTET og ikke i QgsSettings.
+
+        Tilknytningen er per projekt - to skilteplansprojekter peger paa hver
+        sine lag - og hoerer derfor ikke hjemme i de globale indstillinger.
+        """
+        project = QgsProject.instance()
+        for rolle, lag in self.dlg.tilknyttedeLag().items():
+            project.writeEntry("skilteplan", "lag/{}".format(rolle), lag.id())
+
+    def laesTilknytning(self):
+        """Genskaber en gemt lagtilknytning fra projektet."""
+        project = QgsProject.instance()
+        tilknytning = {}
+        for rolle in skema.ROLLER:
+            lagid, ok = project.readEntry("skilteplan", "lag/{}".format(rolle), "")
+            if ok and lagid:
+                tilknytning[rolle] = lagid
+        return tilknytning
+
+    # Vist navn pr. rolle. Bruges ved forberedelse af projektet, saa lagene
+    # hedder det samme i alle projekter og er lette at genkende i lagpanelet.
+    LAGNAVNE = {
+        skema.ROLLE_SKILTE: "Skilte",
+        skema.ROLLE_SKILTEPLAN: "Skilteplan",
+        skema.ROLLE_SKILTETYPER: "Skiltetyper",
+    }
+
+    def omdoebLag(self, valgte):
+        """
+        Giver de tilknyttede lag ensartede navne i lagpanelet.
+
+        Rent kosmetisk: symbologi, join og opslag bruger lag-id'er og et fast
+        join-prefiks, saa intet i plugin'et afhaenger af navnet.
+        """
+        omdoebt = []
+        for rolle, lag in valgte.items():
+            nyt_navn = self.LAGNAVNE.get(rolle)
+            if nyt_navn and lag.name() != nyt_navn:
+                omdoebt.append("{} -> {}".format(lag.name(), nyt_navn))
+                lag.setName(nyt_navn)
+
+        if omdoebt:
+            QgsMessageLog.logMessage(
+                "Lag omdøbt: {}".format(", ".join(omdoebt)),
+                tag="skilteplan", level=Qgis.MessageLevel.Info)
+        return omdoebt
+
+    def saetPlanidDefault(self, planlayer):
+        """
+        Autonummererer skilteplan.planid klientsiden.
+
+        planid er 'integer' og ikke 'serial', fordi serial kun virker i
+        PostGIS. Uden dette ville en ny skilteplan i en GeoPackage eller
+        FileGDB faa planid = NULL, hvorefter ValueRelation'en i skiltelaget
+        viser en tom post og joinet kobler ingenting - uden fejlmeddelelse.
+        """
+        if planlayer is None or not planlayer.isValid():
+            return False
+
+        idx = planlayer.fields().indexOf("planid")
+        if idx < 0:
+            QgsMessageLog.logMessage(
+                "Laget 'skilteplan' har ingen planid-kolonne - "
+                "autonummerering slået fra",
+                tag="skilteplan", level=Qgis.MessageLevel.Warning)
+            return False
+
+        planlayer.setDefaultValueDefinition(
+            idx, QgsDefaultValue(skema.DEFAULT_PLANID, True))
+        return True
+
+    def addCategoryField(self, layer, fieldName):
+        # Tilfoejer et virtuelt felt til skiltetype tabellen, som udtrækker skiltekategorien
+        # fra skiltenavnet, idet den indledende del af navnet (før cifrene) henviser til dette.
+
+        # Definér expression, som udtrækker bogstavdelen af navnet og matcher dette med kategori.
+        KATEGORI_EXPRESSION = """
+            with_variable(
+                'kategori',
+                regexp_substr("skiltenavn", '^[A-Z]+'),
+                @kategori
+                || ' - ' ||
+                coalesce(
+                    map_get(
+                        map('A', 'Advarselstavler',
+                            'B', 'Vigepligtstavler',
+                            'C', 'Forbudstavler',
+                            'D', 'Påbudstavler',
+                            'E', 'Oplysningstavler',
+                            'M', 'Infotavler',
+                            'U', 'Undertavler',
+                            'UA', 'Undertavler til advarselstavler',
+                            'UB', 'Undertavler til vigepligtstavler',
+                            'UC', 'Undertavler til forbudstavler',
+                            'UD', 'Undertavler til påbudstavler',
+                            'UE', 'Undertavler til oplysningstavler'
+                        ),
+                        @kategori
+                    ),
+                    '<ukendt>'
+                )
+            )
+            """
+
+        # Tilfoej virtuelt felt eller opdatér dets expression, hvis det allerede eksisterer
+        fields = layer.fields()
+        existingIdx = fields.indexOf(fieldName)
+        if existingIdx != -1:
+            if fields.fieldOrigin(existingIdx) == Qgis.FieldOrigin.Expression:
+                layer.updateExpressionField(existingIdx, KATEGORI_EXPRESSION)
+                return existingIdx
+            raise ValueError(f"Layer already has a regular field named '{fieldName}'")
+
+        return layer.addExpressionField(
+            KATEGORI_EXPRESSION, QgsField(fieldName, QMetaType.Type.QString)
+        )
+
+    def prepareProject(self):
+
+        self.readParamsFromDlg()
+
+        # Gem opsaetningen - baade i projektet (saa det kan deles) og i egne
+        # indstillinger (saa naeste nye projekt starter med det samme)
+        self.storeParamsToProject()
+        self.storeParams()
+        self.gemTilknytning()
+        self.setSnapEnvironment()
+
+        # Lagene kommer fra brugerens egen tilknytning - plugin'et opretter
+        # dem ikke og flytter dem ikke rundt i lagtraeet.
+        valgte = self.dlg.tilknyttedeLag()
+        manglende = [r for r in skema.ROLLER if r not in valgte]
+        if manglende:
+            self.visFejl("Følgende roller mangler et lag: {}".format(
+                ", ".join(manglende)))
+            return
+
+        fejl = []
+        for rolle, lag in valgte.items():
+            res = skema.validerLag(lag, rolle)
+            if not res.ok:
+                fejl.extend(res.fejl)
+        if fejl:
+            self.visFejl("Lagene kan ikke bruges:\n\n- {}".format("\n- ".join(fejl)))
+            return
+
+        typelayer = valgte[skema.ROLLE_SKILTETYPER]
+        planlayer = valgte[skema.ROLLE_SKILTEPLAN]
+        skiltelayer = valgte[skema.ROLLE_SKILTE]
+
+        self.omdoebLag(valgte)
+        self.saetPlanidDefault(planlayer)
+
+        # Sikr at biblioteket kender alle skilte i grafikmappen
+        self.dlg.synkroniserSkiltebibliotek()
+
+        # Opsaet virtuelt kategori-felt på skiltetype tabellen
+        n = self.addCategoryField(typelayer, 'kategori')
+
+        # Symbologi og attributformular
+        self.indlaesStil(skiltelayer, typelayer, planlayer)
+
+        # Joinet tilfoejes kun én gang - fjern et tidligere join mod samme lag
+        for eksisterende in skiltelayer.vectorJoins():
+            if eksisterende.joinLayerId() == planlayer.id():
+                skiltelayer.removeJoin(planlayer.id())
+
         joininfo = QgsVectorLayerJoinInfo()
         joininfo.setJoinLayer(planlayer)
-        joininfo.setJoinFieldName("id")
+        joininfo.setJoinFieldName("planid")
         joininfo.setTargetFieldName("planid")
         joininfo.setUsingMemoryCache(True)
-        joininfo.setJoinFieldNamesSubset(['beskrivelse','startdato','slutdato'])
-        res = skiltelayer.addJoin(joininfo)
-        #QgsMessageLog.logMessage("Adding join  to 'skilte' {}!".format("succeeded" if res else "failed"), tag="skilteplan", level=Qgis.Info )
-        project.addMapLayer(skiltelayer, False)
+        joininfo.setJoinFieldNamesSubset(skema.JOIN_FELTER)
 
-        # Load skilte manuelt layer
-        uri.setDataSource("skilteplan", "skilte", "geom", '"manuelrotation"')
-        mskiltelayer = QgsVectorLayer(uri.uri(False), "skilte (manuelt)", "postgres")
-        qml_path = QgsApplication.qgisSettingsDirPath() + 'python\\plugins\\skilteplan\\skilte_manuelt.qml'
-        mskiltelayer.loadNamedStyle(qml_path)
-        res = mskiltelayer.addJoin(joininfo)
-        #QgsMessageLog.logMessage("Adding join 'skilte (manuelt)' {}!".format("succeeded" if res else "failed"), tag="skilteplan", level=Qgis.Info )
-        project.addMapLayer(mskiltelayer, False)
+        # Uden et prefiks bruger QGIS det joinede LAGS NAVN plus understreg.
+        # Attributformularen i skilte.qml refererer til skilteplan_beskrivelse,
+        # skilteplan_startdato og så videre, saa prefikset saettes udtrykkeligt
+        # - ellers forsvinder felterne, saa snart laget hedder noget andet.
+        joininfo.setPrefix("{}_".format(skema.ROLLE_SKILTEPLAN))
 
-        # Add layers and tables to project
-        skp_group.addLayer(skiltelayer)
-        skp_group.addLayer(mskiltelayer)
-        skp_group.addLayer(typelayer)
-        skp_group.addLayer(planlayer)
+        skiltelayer.addJoin(joininfo)
+
+        # Atlaslag og layout - joinet skal vaere paa plads foerst, saa det
+        # virtuelle lag ser de samme felter som resten af projektet
+        if self.dlg.chkAtlas.isChecked():
+            try:
+                atlaslag, layout = atlas.opretAtlasOgLayout(
+                    QgsProject.instance(), skiltelayer, planlayer)
+                QgsMessageLog.logMessage(
+                    "Atlas klar: lag '{}', layout '{}'".format(
+                        atlaslag.name(), layout.name() if layout else "-"),
+                    tag="skilteplan", level=Qgis.MessageLevel.Info)
+            except Exception as e:
+                self.visFejl("Atlaslag og layout blev ikke oprettet:\n\n{}".format(e))
 
         # Set appropriate default values
+        # Vejopslag kraever baade et snaplag og de to feltnavne
+        vejopslag = bool(self.params.get("snaplag")
+                         and self.params.get("vejkodefelt")
+                         and self.params.get("vejnavnefelt"))
+
+        # Opslag i skilteplan-laget via LAG-ID og ikke lagnavn, saa laget
+        # kan hedde hvad som helst i projektet
+        planopslag = ("attribute(get_feature('" + planlayer.id() +
+                      "', 'planid', \"planid\"),'{}')")
+
         for idx, f in enumerate(skiltelayer.fields()):
             if f.name() == 'skilteplan_beskrivelse':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("attribute(get_feature_by_id('skilteplan', \"planid\" ),'beskrivelse')", True))
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue(planopslag.format("beskrivelse"), True))
             elif f.name() == 'skilteplan_startdato':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("attribute(get_feature_by_id('skilteplan', \"planid\" ),'startdato')", True))
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue(planopslag.format("startdato"), True))
             elif f.name() == 'skilteplan_slutdato':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("attribute(get_feature_by_id('skilteplan', \"planid\" ),'slutdato')", True))
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue(planopslag.format("slutdato"), True))
             elif f.name() == 'rotation':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("rotateRoadSign( array(@snaplag), 0.1, \"retning\")", True))
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue(skema.DEFAULT_ROTATION, True))
             elif f.name() == 'retning':
                 skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("'right'"))
             elif f.name() == 'offset':
@@ -400,48 +1026,28 @@ class skilteplan:
             elif f.name() == 'faktor':
                 skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("100"))
             elif f.name() == 'vejnavn':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),1)", True))
+                # Uden begge feltnavne kan opslaget ikke laves - saa lades
+                # feltet staa tomt frem for at faa en fejlkode som vaerdi
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue(
+                    "array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),1)"
+                    if vejopslag else "", True))
             elif f.name() == 'vejkode':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),0)", True))
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue(
+                    "array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),0)"
+                    if vejopslag else "", True))
             elif f.name() == 'adresse':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("getClosestAddress( $x, $y)", True))
+                # Kraever en api key til Datafordeleren
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("getNearestAddress( $x, $y)", True))
+            elif f.name() == 'matrikel':
+                # Kraever en api key til Datafordeleren
+                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("getJordstykke( $x, $y)", True))
 
         skiltelayer.updateFields()
-
-        for idx, f in enumerate(mskiltelayer.fields()):
-            if f.name() == 'skilteplan_beskrivelse':
-                mskiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("attribute(get_feature_by_id('skilteplan', \"planid\" ),'beskrivelse')", True))
-            elif f.name() == 'skilteplan_startdato':
-                mskiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("attribute(get_feature_by_id('skilteplan', \"planid\" ),'startdato')", True))
-            elif f.name() == 'skilteplan_slutdato':
-                mskiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("attribute(get_feature_by_id('skilteplan', \"planid\" ),'slutdato')", True))
-            elif f.name() == 'rotation':
-                mskiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("0"))
-            elif f.name() == 'manuelrotation':
-                mskiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("True"))
-            elif f.name() == 'faktor':
-                mskiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("100"))
-            elif f.name() == 'vejnavn':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),1)", True))
-            elif f.name() == 'vejkode':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("array_get(string_to_array( getRoadCodeAndName(@snaplag,@vejkodefelt,@vejnavnfelt),':'),0)", True))
-            elif f.name() == 'adresse':
-                skiltelayer.setDefaultValueDefinition(idx, QgsDefaultValue("getClosestAddress( $x, $y)", True))
-
-        mskiltelayer.updateFields()
         
         self.setSnapEnvironment()
         
-        # If present, add layers from qlr file
-        qlr_path = self.params['qlr_sti']
-        if qlr_path:
-            QgsLayerDefinition.loadLayerDefinition(qlr_path, project, project.layerTreeRoot())
-
 
         # # Load QLR
-        # qlr_path = QgsApplication.qgisSettingsDirPath() + 'python\plugins\skilteplan\skilteplan.qlr'
-        # QgsMessageLog.logMessage("Loading layers from {}".format(qlr_path), tag="skilteplan", level=Qgis.Info )
-        # QgsLayerDefinition.loadLayerDefinition(qlr_path, project, project.layerTreeRoot())
 
         # # Change data source
         # skp_group = project.layerTreeRoot().findGroup('skilteplan')
@@ -449,14 +1055,16 @@ class skilteplan:
         # if skp_group is not None:
             # for child in skp_group.children():
                 # layer = child.layer()
-                # QgsMessageLog.logMessage("Found layer {}".format(layer.name()), tag="skilteplan", level=Qgis.Info )
+
                 # original_source = layer.dataProvider().dataSourceUri()
-                # QgsMessageLog.logMessage("Original data source {}".format(original_source), tag="skilteplan", level=Qgis.Info )
+
                 # new_source = dict_to_string(replace_dict_values(string_to_dict(original_source),new_connection))
                 # layer.setDataSource(new_source, layer.name(), layer.providerType()) #self.params['skilteplanDB'] + '|' + layer.source().split('|')[-1], layer.name(), layer.providerType())
-                # QgsMessageLog.logMessage("New data source {}".format(new_source), tag="skilteplan", level=Qgis.Info )
+
             
-        QgsMessageLog.logMessage("Finished preparing project!", tag="skilteplan", level=Qgis.Info )
+        QgsMessageLog.logMessage("Finished preparing project!", tag="skilteplan", level=Qgis.MessageLevel.Info )
+        QMessageBox.information(None, "Klargør projekt","Projektet er klargjort!")
+
         
     def setSnapEnvironment(self):
         project = QgsProject.instance()
