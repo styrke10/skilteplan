@@ -1,0 +1,840 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>skilteplanDialogBase</class>
+ <widget class="QDialog" name="skilteplanDialogBase">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>424</width>
+    <height>703</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>360</width>
+    <height>520</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Skilteplan</string>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="autoFillBackground">
+      <bool>true</bool>
+     </property>
+     <property name="currentIndex">
+      <number>1</number>
+     </property>
+     <widget class="QWidget" name="skilteplaner_tab">
+      <attribute name="title">
+       <string>Skilteplaner</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="layoutPlaner">
+       <item>
+        <widget class="QLabel" name="lblPlanIntro">
+         <property name="text">
+          <string>Skilteplaner samler skiltene i et projekt med periode og kontaktoplysninger. Vælg planen på det enkelte skilt i attributformularen.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutPlanFilter">
+         <item>
+          <widget class="QLabel" name="lblPlanFilter">
+           <property name="text">
+            <string>Vis:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="cmbPlanFilter">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Aktuelle planer har en slutdato i dag eller senere - det er dem, der kan vælges på et skilt.</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>Aktuelle</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Tidligere</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Alle</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QListWidget" name="planList">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>90</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblNyPlan">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Ny skilteplan</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QFormLayout" name="formPlan">
+         <property name="fieldGrowthPolicy">
+          <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+         </property>
+         <property name="rowWrapPolicy">
+          <enum>QFormLayout::DontWrapRows</enum>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="lblPlan0">
+           <property name="text">
+            <string>Navn:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="editPlanNavn"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="lblPlan1">
+           <property name="text">
+            <string>Beskrivelse:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QPlainTextEdit" name="editPlanBeskrivelse">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>60</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="lblPlan2">
+           <property name="text">
+            <string>Startdato:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QDateEdit" name="datePlanStart">
+           <property name="displayFormat">
+            <string>dd-MM-yyyy</string>
+           </property>
+           <property name="calendarPopup">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="lblPlan3">
+           <property name="text">
+            <string>Slutdato:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QDateEdit" name="datePlanSlut">
+           <property name="displayFormat">
+            <string>dd-MM-yyyy</string>
+           </property>
+           <property name="calendarPopup">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="lblPlan4">
+           <property name="text">
+            <string>Organisation:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QLineEdit" name="editPlanOrganisation"/>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="lblPlan5">
+           <property name="text">
+            <string>Kontaktperson:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QLineEdit" name="editPlanKontakt"/>
+         </item>
+         <item row="6" column="0">
+          <widget class="QLabel" name="lblPlan6">
+           <property name="text">
+            <string>Telefon:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QLineEdit" name="editPlanTelefon"/>
+         </item>
+         <item row="7" column="0">
+          <widget class="QLabel" name="lblPlan7">
+           <property name="text">
+            <string>E-mail:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="1">
+          <widget class="QLineEdit" name="editPlanMail"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutPlanKnapper">
+         <item>
+          <widget class="QPushButton" name="btnRydPlan">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Fravaelger planen i listen og tommer formularen</string>
+           </property>
+           <property name="text">
+            <string>Ryd felter</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnGemPlan">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Gemmer formularen på den valgte plan i listen</string>
+           </property>
+           <property name="text">
+            <string>Gem ændringer</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnOpretPlan">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>32</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Opret skilteplan</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="opret_projekt_tab">
+      <attribute name="title">
+       <string>Opsætning</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="layoutOpsaetning">
+       <item>
+        <widget class="QScrollArea" name="scrollOpsaetning">
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <widget class="QWidget" name="scrollIndhold">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>374</width>
+            <height>566</height>
+           </rect>
+          </property>
+          <layout class="QFormLayout" name="formOpsaetning">
+           <property name="fieldGrowthPolicy">
+            <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+           </property>
+           <property name="rowWrapPolicy">
+            <enum>QFormLayout::DontWrapRows</enum>
+           </property>
+           <property name="labelAlignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+           </property>
+           <property name="horizontalSpacing">
+            <number>8</number>
+           </property>
+           <property name="verticalSpacing">
+            <number>6</number>
+           </property>
+           <item row="0" column="0" colspan="2">
+            <widget class="QLabel" name="lblLagIntro">
+             <property name="text">
+              <string>Udpeg hvilke lag i projektet der udfylder hver rolle. Lagene kan ligge i den datakilde, du selv har valgt.</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lblRolleSkilte">
+             <property name="text">
+              <string>Skilte (punktlag):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QgsMapLayerComboBox" name="cmbLagSkilte"/>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="lblRolleSkiltetyper">
+             <property name="text">
+              <string>Skiltetyper (tabel):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QgsMapLayerComboBox" name="cmbLagSkiltetyper"/>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="lblRolleSkilteplan">
+             <property name="text">
+              <string>Skilteplaner (tabel):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QgsMapLayerComboBox" name="cmbLagSkilteplan"/>
+           </item>
+           <item row="4" column="0" colspan="2">
+            <widget class="QTextBrowser" name="txtValidering">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>70</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>110</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="label_2">
+             <property name="text">
+              <string>Sti til mappe med skiltegrafik:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QgsFileWidget" name="path_sign_graphics">
+             <property name="storageMode">
+              <enum>QgsFileWidget::GetDirectory</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0">
+            <widget class="QLabel" name="label">
+             <property name="text">
+              <string>Skilteafstand:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="1">
+            <widget class="QSpinBox" name="signDistance">
+             <property name="value">
+              <number>2</number>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="0" colspan="2">
+            <widget class="QLabel" name="lblSnapOverskrift">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Snapning og adresseopslag</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="0">
+            <widget class="QLabel" name="label_3">
+             <property name="text">
+              <string>API-key til Datafordeleren:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="1">
+            <widget class="QLineEdit" name="datfor_api_key"/>
+           </item>
+           <item row="9" column="0">
+            <widget class="QLabel" name="label_4">
+             <property name="text">
+              <string>Snaplag:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="1">
+            <widget class="QgsMapLayerComboBox" name="snaplayers"/>
+           </item>
+           <item row="10" column="0">
+            <widget class="QLabel" name="label_5">
+             <property name="text">
+              <string>Vejkodefelt:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="10" column="1">
+            <widget class="QgsFieldComboBox" name="vejkode"/>
+           </item>
+           <item row="11" column="0">
+            <widget class="QLabel" name="label_6">
+             <property name="text">
+              <string>Vejnavnfelt:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="1">
+            <widget class="QgsFieldComboBox" name="vejnavn"/>
+           </item>
+           <item row="13" column="0" colspan="2">
+            <widget class="QPushButton" name="btnPrepareProject">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>36</height>
+              </size>
+             </property>
+             <property name="font">
+              <font>
+               <pointsize>10</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Forbered projekt til skilteplan</string>
+             </property>
+             <property name="default">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="14" column="0" colspan="2">
+            <spacer name="opsaetningSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>0</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="12" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkAtlas">
+             <property name="toolTip">
+              <string>Laver et virtuelt lag med ét objekt pr. skilteplan og et A4-layout med atlas. Et eksisterende layout ændres ikke.</string>
+             </property>
+             <property name="text">
+              <string>Opret atlaslag og printlayout</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="skiltebibliotek_tab">
+      <attribute name="title">
+       <string>Skiltebibliotek</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <widget class="QTreeWidget" name="signList">
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="rootIsDecorated">
+          <bool>false</bool>
+         </property>
+         <property name="uniformRowHeights">
+          <bool>true</bool>
+         </property>
+         <property name="sortingEnabled">
+          <bool>false</bool>
+         </property>
+         <column>
+          <property name="text">
+           <string>Navn</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Beskrivelse</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Inaktiv</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_bibliotek">
+         <item>
+          <widget class="QGraphicsView" name="signView">
+           <property name="minimumSize">
+            <size>
+             <width>90</width>
+             <height>90</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_bibliotekknapper">
+           <item>
+            <widget class="QPushButton" name="btnAddSign">
+             <property name="text">
+              <string>Tilføj...</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnEditSign">
+             <property name="text">
+              <string>Rediger...</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnDeleteSign">
+             <property name="text">
+              <string>Slet</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnImportSigns">
+             <property name="toolTip">
+              <string>Opretter poster for de SVG-filer i skiltegrafikmappen, som mangler i tabellen.</string>
+             </property>
+             <property name="text">
+              <string>Indlæs fra mappe...</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnFjernDubletter">
+             <property name="toolTip">
+              <string>Fjerner gentagne skilte med samme navn og beholder den første.</string>
+             </property>
+             <property name="text">
+              <string>Fjern dubletter</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QGroupBox" name="sortButtonGrp">
+             <property name="title">
+              <string>Sortér efter:</string>
+             </property>
+             <widget class="QRadioButton" name="rbtnSortByName">
+              <property name="geometry">
+               <rect>
+                <x>10</x>
+                <y>20</y>
+                <width>95</width>
+                <height>20</height>
+               </rect>
+              </property>
+              <property name="text">
+               <string>Navn</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+             <widget class="QRadioButton" name="rbtnSortByDescription">
+              <property name="geometry">
+               <rect>
+                <x>10</x>
+                <y>40</y>
+                <width>95</width>
+                <height>20</height>
+               </rect>
+              </property>
+              <property name="text">
+               <string>Beskrivelse</string>
+              </property>
+             </widget>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="datakilde_tab">
+      <attribute name="title">
+       <string>Opret datakilde</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_4">
+       <item>
+        <widget class="QLabel" name="lblOpretIntro">
+         <property name="text">
+          <string>Opretter tomme skilteplanstabeller. Dette gøres normalt kun én gang i organisationen - derefter arbejdes der videre i de samme lag, så historikken bevares.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_9">
+         <property name="text">
+          <string>Datakilde:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutDatakilde">
+         <item>
+          <widget class="QRadioButton" name="rbPostgis">
+           <property name="text">
+            <string>PostGIS</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="rbGpkg">
+           <property name="text">
+            <string>GeoPackage</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_7">
+         <property name="text">
+          <string>Forbindelse til database med skiltedata:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="cmbConnections"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblGpkg">
+         <property name="text">
+          <string>Skilteplansdatabase (GeoPackage):</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QgsFileWidget" name="path_sign_db">
+         <property name="toolTip">
+          <string>Stien til skilteplansdatabasen. Ved oprettelse bruges denne sti som maal - er feltet tomt, spoerges der om en placering.</string>
+         </property>
+         <property name="filter">
+          <string>GeoPackage (*.gpkg)</string>
+         </property>
+         <property name="storageMode">
+          <enum>QgsFileWidget::SaveFile</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="chkIndlaesLag">
+         <property name="text">
+          <string>Indlæs lagene i projektet efter oprettelse</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnCreateDB">
+         <property name="text">
+          <string>Opret ny skilteplansdatabase...</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnUdpakGrafik">
+         <property name="toolTip">
+          <string>Udpakker de medfoelgende skilte-SVG'er til en mappe, du selv vaelger.</string>
+         </property>
+         <property name="text">
+          <string>Udpak skiltegrafik...</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="usersGuideLink">
+     <property name="text">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;https://styrke10.gitbook.io/vejledning-til-qgis-plugin-skilteplan/&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Link til vejledning&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="openExternalLinks">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="copyrightLabel">
+     <property name="text">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Udviklet af &lt;a href=&quot;https://styrke10.dk&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Styrke 10 ApS&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="openExternalLinks">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="button_box">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QgsFieldComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgsfieldcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsFileWidget</class>
+   <extends>QWidget</extends>
+   <header>qgsfilewidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QgsMapLayerComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgsmaplayercombobox.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>button_box</sender>
+   <signal>accepted()</signal>
+   <receiver>skilteplanDialogBase</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>button_box</sender>
+   <signal>rejected()</signal>
+   <receiver>skilteplanDialogBase</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
