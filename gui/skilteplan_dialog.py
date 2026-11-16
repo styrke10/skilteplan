@@ -42,8 +42,9 @@ except ImportError:
     except ImportError:
         from PyQt6.QtSvgWidgets import QGraphicsSvgItem
 
-from qgis.PyQt.QtCore import Qt, QDate, QCollator, QLocale, QMetaType
+from qgis.PyQt.QtCore import Qt, QDate, QDateTime, QTime, QCollator, QLocale, QMetaType
 from qgis.core import Qgis, QgsProject, QgsProviderRegistry, QgsVectorLayer, QgsMessageLog, QgsFeatureRequest, QgsFeature, QgsExpression
+import datetime
 import os.path
 from functools import cmp_to_key
 
@@ -439,15 +440,23 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
     @staticmethod
     def tilQDate(vaerdi):
         """
-        Datofelter kommer som QDate fra nogle providere og som tekst fra andre.
+        Datofelter kommer som QDate (PostGIS/GPKG), QDateTime (Esri/MSSQL),
+        Python-dato eller tekst afhaengigt af provider.
         Returnerer None, hvis vaerdien ikke kan tydes.
         """
         if vaerdi is None:
             return None
+        if isinstance(vaerdi, QDateTime):
+            return vaerdi.date() if vaerdi.isValid() else None
         if isinstance(vaerdi, QDate):
             return vaerdi if vaerdi.isValid() else None
+        if isinstance(vaerdi, datetime.date):  # daekker ogsaa datetime.datetime
+            return QDate(vaerdi.year, vaerdi.month, vaerdi.day)
+        # Tekst med eller uden klokkeslaet: '2026-11-16', '2026-11-16 00:00:00',
+        # '2026-11-16T00:00:00.000' - kun datodelen bruges
+        tekst = str(vaerdi).strip()[:10]
         for form in ("yyyy-MM-dd", "dd-MM-yyyy"):
-            d = QDate.fromString(str(vaerdi), form)
+            d = QDate.fromString(tekst, form)
             if d.isValid():
                 return d
         return None
@@ -508,7 +517,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
                 return
 
         lag.startEditing()
-        for felt, vaerdi in self.planVaerdier(navn, start, slut).items():
+        for felt, vaerdi in self.planVaerdier(lag, navn, start, slut).items():
             f.setAttribute(felt, vaerdi)
         lag.updateFeature(f)
 
@@ -551,13 +560,25 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
             return None, None, None
         return navn, start, slut
 
-    def planVaerdier(self, navn, start, slut):
+    @staticmethod
+    def datoTilFelt(lag, feltnavn, dato):
+        """
+        Esri har ingen ren datotype - feltet er datetime. Klokken saettes til
+        12:00, saa en evt. UTC-konvertering (feature service) ikke flytter
+        datoen til dagen foer eller efter.
+        """
+        idx = lag.fields().indexOf(feltnavn)
+        if idx >= 0 and lag.fields().at(idx).type() == QMetaType.Type.QDateTime:
+            return QDateTime(dato, QTime(12, 0))
+        return dato
+
+    def planVaerdier(self, lag, navn, start, slut):
         """Formularens vaerdier som {feltnavn: vaerdi} - uden planid."""
         return {
             "navn": navn,
             "beskrivelse": self.editPlanBeskrivelse.toPlainText(),
-            "startdato": start,
-            "slutdato": slut,
+            "startdato": self.datoTilFelt(lag, "startdato", start),
+            "slutdato": self.datoTilFelt(lag, "slutdato", slut),
             "kontaktorganisation": self.editPlanOrganisation.text(),
             "kontaktperson": self.editPlanKontakt.text(),
             "kontakttelefon": self.editPlanTelefon.text(),
@@ -609,7 +630,7 @@ class skilteplanDialog(QtWidgets.QDialog, FORM_CLASS):
         feature = QgsFeature()
         feature.setFields(lag.fields(), True)
         feature.setAttribute("planid", hoejeste + 1)
-        for felt, vaerdi in self.planVaerdier(navn, start, slut).items():
+        for felt, vaerdi in self.planVaerdier(lag, navn, start, slut).items():
             feature.setAttribute(felt, vaerdi)
 
         lag.startEditing()
