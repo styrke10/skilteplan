@@ -243,9 +243,9 @@ def opretGeopackage(sti, roller=None, overskriv=False):
 
     if os.path.exists(sti) and not overskriv:
         # Nye lag foejes til den eksisterende fil
-        foerste_handling = QgsVectorFileWriter.CreateOrOverwriteLayer
+        foerste_handling = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteLayer
     else:
-        foerste_handling = QgsVectorFileWriter.CreateOrOverwriteFile
+        foerste_handling = QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteFile
 
     ctx = QgsProject.instance().transformContext()
 
@@ -258,7 +258,7 @@ def opretGeopackage(sti, roller=None, overskriv=False):
         opt.fileEncoding = "UTF-8"
         opt.actionOnExistingFile = (
             foerste_handling if i == 0
-            else QgsVectorFileWriter.CreateOrOverwriteLayer)
+            else QgsVectorFileWriter.ActionOnExistingFile.CreateOrOverwriteLayer)
         if harGeometri(rolle):
             opt.layerOptions = ["GEOMETRY_NAME={}".format(
                 SKEMA[rolle]["geomkolonne"])]
@@ -268,7 +268,7 @@ def opretGeopackage(sti, roller=None, overskriv=False):
         # V3 returnerer (fejlkode, besked, nytFilnavn, nytLagnavn)
         fejlkode = resultat[0]
         besked = resultat[1] if len(resultat) > 1 else ""
-        if fejlkode != QgsVectorFileWriter.NoError:
+        if fejlkode != QgsVectorFileWriter.WriterError.NoError:
             raise IOError("Kunne ikke skrive '{}' til {}: {}".format(
                 rolle, sti, besked))
 
