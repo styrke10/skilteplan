@@ -21,7 +21,10 @@ repository=https://github.com/styrke10/skilteplan
 # Recommended items:
 
 hasProcessingProvider=no
-changelog=1.1.0
+changelog=1.1.1
+    - Understøttelse af flere dato-formater i skilteplansdialogen
+    - Rettet mindre Qt6 kompatibilitetsissues
+    1.1.0
     - Skiltebiblioteket vises som tabel med kolonnerne Navn, Beskrivelse og Inaktiv
     - Skilte kan markeres som inaktive direkte i skiltebiblioteket (valgfrit
       felt 'inaktiv' på skiltetyper; boolean eller 0/1-heltal, fx i Esri)
